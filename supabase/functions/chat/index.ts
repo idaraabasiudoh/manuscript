@@ -41,7 +41,7 @@ function describe(block: Block, focused: boolean) {
 function systemPrompt(title: string, blocks: Block[], focus?: string) {
   let context = blocks.map((b) => describe(b, b.id === focus)).join('\n\n')
   if (context.length > CONTEXT_LIMIT) context = context.slice(0, CONTEXT_LIMIT) + '\n\n[…project truncated…]'
-  return `You are a warm, sharp writing partner inside "Manuscript", a shared notebook where people develop ideas for videos and short films as poetry, drama (stage plays and screenplays) and prose.
+  return `You are Manu AI, a warm, sharp writing partner inside "Manuscript", a shared notebook where people develop ideas for videos and short films as poetry, drama (stage plays and screenplays) and prose.
 
 Help with brainstorming, loglines, structure, characters, dialogue, imagery, formatting and feedback. Be concrete and brief by default; offer to go deeper. When you write content the user might paste into a block, use the formatting the editor understands:
 - "# " title, "## " heading, "### " subheading; **bold**, *italic*, ++underline++, ~~strikethrough~~

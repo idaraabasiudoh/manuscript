@@ -103,7 +103,7 @@ src/
     TextEditor.tsx         toolbar + textarea + live preview + formatting guide
     NewBlockDialog.tsx     name + template / file / URL
     PdfViewer.tsx          pdf.js canvas renderer (lazy chunk)
-    Chat.tsx               Muse assistant panel
+    Chat.tsx               Manu AI panel (focus chip, suggestions, retry, wide mode, ⌘J)
     Icons.tsx              inline SVG icons
 supabase/
   migrations/              SQL, run in filename order

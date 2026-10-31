@@ -337,6 +337,16 @@ export function ProjectPage() {
     }
   }
 
+  /** Tap-to-move for touch screens, where drag and drop isn't available. */
+  const moveBlock = (index: number, dir: -1 | 1) => {
+    const target = index + dir
+    if (target < 0 || target >= blocks.length) return
+    const position = dir < 0 ? between(blocks[target - 1]?.position, blocks[target].position) : between(blocks[target].position, blocks[target + 1]?.position)
+    const id = blocks[index].id
+    patchBlock(id, { position }, true)
+    scrollTo(id)
+  }
+
   const startPaletteDrag = (e: DragEvent, kind: BlockKind) => {
     e.dataTransfer.setData(KIND_MIME, kind)
     e.dataTransfer.effectAllowed = 'copy'
@@ -370,7 +380,7 @@ export function ProjectPage() {
 
   const insertFromChat = async (text: string) => {
     const heading = text.match(/^#{1,3}\s+(.+)$/m)?.[1]
-    await createBlock({ kind: 'text', title: heading?.replace(/[*_~+]/g, '').slice(0, 80) || 'From Muse', body: text, data: {} }, endPosition())
+    await createBlock({ kind: 'text', title: heading?.replace(/[*_~+]/g, '').slice(0, 80) || 'From Manu AI', body: text, data: {} }, endPosition())
   }
 
   // ---- Render -----------------------------------------------------------------
@@ -564,6 +574,9 @@ export function ProjectPage() {
                     onAsk={() => askAbout(block)}
                     onDragStart={(e) => startBlockDrag(e, block)}
                     onDragEnd={() => (setDragId(undefined), setDrop(null))}
+                    onMove={(dir) => moveBlock(i, dir)}
+                    canMoveUp={i > 0}
+                    canMoveDown={i < blocks.length - 1}
                   />,
                 ])}
                 {dropLine(blocks.length)}
@@ -623,6 +636,7 @@ export function ProjectPage() {
           open={chatOpen}
           draft={chatDraft}
           onOpenChange={setChatOpen}
+          onClearFocus={() => setFocusId(undefined)}
           onInsert={insertFromChat}
         />
       )}

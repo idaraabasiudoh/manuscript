@@ -224,6 +224,17 @@ export function TextEditor({ kind, value, onChange, autoFocus }: Props) {
 
   return (
     <div className={`editor kind-${kind}`}>
+      {/* Phones: view switch and help get their own row so they're never scrolled out of reach */}
+      <div className="editor-top">
+        <div className="segmented">
+          <button type="button" className={tab === 'write' ? 'on' : ''} onClick={() => setTab('write')}>Write</button>
+          <button type="button" className={tab === 'preview' ? 'on' : ''} onClick={() => setTab('preview')}>Preview</button>
+        </div>
+        <span className="editor-swipe">Swipe tools →</span>
+        <button type="button" className={`tool square ${guide ? 'on' : ''}`} onClick={() => setGuide((g) => !g)} title="How formatting works" aria-label="Formatting guide">
+          <Help width={15} height={15} />
+        </button>
+      </div>
       <div className="editor-bar" role="toolbar" aria-label="Formatting">
         <div className="tool-group sizes" aria-label="Text size">
           {SIZES.map((t) => button(t, `size-${t.id}`))}

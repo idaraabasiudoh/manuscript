@@ -22,7 +22,8 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 - **Drag and drop.** Drag a block type from the sidebar to a spot on the page, drag the ⋮⋮ grip to reorder, or drop files from your desktop anywhere on the page.
 - **Live collaboration.** Edits autosave and appear for everyone viewing the project. A presence counter shows how many people are on the page.
 - **Reader mode.** Hides all the editing controls so you can present or share the page cleanly.
-- **Muse AI assistant.** A chat box in the bottom-right corner reads the whole project, knows which block you're working on, streams its replies, and can turn any reply into a new block.
+- **Manu AI assistant.** Opens from the bottom-right corner, or with ⌘J / Ctrl+J. It reads the whole project, knows which block you're working on (you can clear that with the "About" chip), streams its replies, offers suggestions that match what you're doing, and lets you retry, copy or turn any reply into a new block. On phones it opens as a full-screen sheet; in landscape it docks to the side.
+- **Adapts to any screen.** Desktop, laptop, tablet (the sidebar becomes a drawer below 1024px), phone, and short landscape screens (slimmer toolbars). On phones the formatting toolbar becomes one row you swipe sideways, dialogs open as bottom sheets, and template pickers scroll sideways. PDFs zoom up to 300% and scroll both ways inside their frame. Touch screens get move up/down buttons in place of dragging.
 - **Clean deletes.** Deleting a project removes all of its blocks and uploaded files. Deleting a file block removes its file.
 
 ## Stack
@@ -47,7 +48,7 @@ npm run dev
 supabase link --project-ref <ref>
 supabase db push                                   # applies supabase/migrations
 supabase functions deploy chat unfurl delete       # verify_jwt=false is set in supabase/config.toml
-supabase secrets set GEMINI_API_KEY=AIza...         # Google AI Studio key; enables the Muse assistant
+supabase secrets set GEMINI_API_KEY=AIza...         # Google AI Studio key; enables Manu AI
 # optional: supabase secrets set GEMINI_MODEL=gemini-3.5-flash   (the default)
 ```
 

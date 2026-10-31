@@ -17,6 +17,7 @@ const base = (props: P) => ({
 })
 
 export const ArrowRight = (p: P) => <svg {...base(p)}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+export const ArrowUp = (p: P) => <svg {...base(p)}><path d="M12 19V5M6 11l6-6 6 6" /></svg>
 export const Plus = (p: P) => <svg {...base(p)}><path d="M12 5v14M5 12h14" /></svg>
 export const Close = (p: P) => <svg {...base(p)}><path d="M6 6l12 12M18 6L6 18" /></svg>
 export const Check = (p: P) => <svg {...base(p)}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
@@ -42,6 +43,10 @@ export const Spark = (p: P) => (
     <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
   </svg>
 )
+export const Expand = (p: P) => <svg {...base(p)}><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>
+export const Shrink = (p: P) => <svg {...base(p)}><path d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7" /></svg>
+export const Refresh = (p: P) => <svg {...base(p)}><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" /></svg>
+export const Minus = (p: P) => <svg {...base(p)}><path d="M5 12h14" /></svg>
 export const Upload = (p: P) => <svg {...base(p)}><path d="M12 16V4M7 8.5l5-5 5 5M5 20h14" /></svg>
 
 export const KindIcon = ({ kind, ...p }: P & { kind: BlockKind }) => {

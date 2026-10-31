@@ -48,7 +48,7 @@ export function renderMarkdown(src: string, kind: TextKind = 'text') {
 
   const flush = () => {
     if (para.length) out.push(`<p>${para.join('<br>')}</p>`)
-    if (list) out.push(`<${list.tag}>${list.items.map((i) => `<li>${i}</li>`).join('')}</${list.tag}>`)
+    if (list) out.push(`<${list.tag}>${list.items.map((i) => (i.startsWith('<li') ? `${i}</li>` : `<li>${i}</li>`)).join('')}</${list.tag}>`)
     if (quote.length) out.push(`<blockquote>${quote.join('<br>')}</blockquote>`)
     if (dialogue) out.push(`<div class="sp-dialogue">${dialogue.join('')}</div>`)
     para = []
@@ -93,10 +93,11 @@ export function renderMarkdown(src: string, kind: TextKind = 'text') {
       if (list?.tag !== 'ul') flush()
       list ??= { tag: 'ul', items: [] }
       list.items.push(inline(m[1]))
-    } else if ((m = line.match(/^\s*\d+[.)]\s+(.*)$/))) {
+    } else if ((m = line.match(/^\s*(\d+)[.)]\s+(.*)$/))) {
       if (list?.tag !== 'ol') flush()
       list ??= { tag: 'ol', items: [] }
-      list.items.push(inline(m[1]))
+      // Keep the writer's numbering, even when items are split by blank lines or paragraphs.
+      list.items.push(`<li value="${Number(m[1])}">${inline(m[2])}`)
     } else if (screenplay && SCENE.test(t)) {
       flush()
       out.push(`<p class="sp-scene">${inline(t.replace(/^\./, ''))}</p>`)

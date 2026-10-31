@@ -3,7 +3,7 @@ import { renderMarkdown } from '../lib/markdown'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem } from '../lib/supabase'
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes, pad, wordCount } from '../lib/util'
-import { Check, Close, Download, External, Grip, KindIcon, Pencil, Plus, Spark, Trash } from './Icons'
+import { ArrowUp, Check, Close, Download, External, Grip, KindIcon, Pencil, Plus, Spark, Trash } from './Icons'
 import { PdfViewer } from './PdfViewer'
 import { TextEditor } from './TextEditor'
 
@@ -19,9 +19,12 @@ type Props = {
   onAsk: () => void
   onDragStart: (e: DragEvent) => void
   onDragEnd: () => void
+  onMove: (dir: -1 | 1) => void
+  canMoveUp: boolean
+  canMoveDown: boolean
 }
 
-export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd }: Props) {
+export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const meta = KINDS[block.kind]
@@ -82,6 +85,12 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
                 </span>
               ) : (
                 <>
+                  <button className="icon-btn sm touch-only" onClick={() => onMove(-1)} disabled={!canMoveUp} aria-label="Move block up">
+                    <ArrowUp width={15} height={15} />
+                  </button>
+                  <button className="icon-btn sm touch-only" onClick={() => onMove(1)} disabled={!canMoveDown} aria-label="Move block down">
+                    <ArrowUp width={15} height={15} style={{ transform: 'rotate(180deg)' }} />
+                  </button>
                   {isTextKind(block.kind) && (
                     <button className="chip ghost" onClick={onAsk} title="Ask the assistant about this block">
                       <Spark width={13} height={13} /> Ask
