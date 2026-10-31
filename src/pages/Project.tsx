@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlockView } from '../components/Block'
 import { Chat } from '../components/Chat'
 import { Close, Eye, KindIcon, Logo, Menu, Pencil, Plus, Share, Trash, ThemeToggle } from '../components/Icons'
 import { NewBlockDialog, type NewBlock } from '../components/NewBlockDialog'
+import { DEFAULT_VIEW, ZoomControl, type FullView } from '../components/ZoomControl'
 import {
   addBlock,
   deleteBlock,
@@ -23,7 +24,7 @@ import {
 } from '../lib/supabase'
 import { isScript } from '../lib/script'
 import { KINDS, PALETTE } from '../lib/templates'
-import { between, blockSlug, forgetProject, NAME_RE, pad, plural, rememberProject, timeAgo, wordCount } from '../lib/util'
+import { between, blockSlug, forgetProject, load, NAME_RE, pad, plural, rememberProject, save, timeAgo, wordCount } from '../lib/util'
 
 const KIND_MIME = 'application/x-manuscript-kind'
 const BLOCK_MIME = 'application/x-manuscript-block'
@@ -69,6 +70,12 @@ export function ProjectPage() {
   /** The block opened full screen at /:project/:block (matched by its 8-character prefix). */
   const fullBlock = blockId ? blocks.find((b) => b.id.startsWith(blockId.toLowerCase())) : undefined
   const lastFull = useRef<string>(undefined)
+  // Full-screen width and text size, remembered per browser.
+  const [fullView, setFullView] = useState<FullView>(() => ({ ...DEFAULT_VIEW, ...load<Partial<FullView>>('fullview', {}) }))
+  const changeFullView = (v: FullView) => {
+    setFullView(v)
+    save('fullview', v)
+  }
 
   const flash = useCallback((msg: string) => {
     setToast(msg)
@@ -562,6 +569,7 @@ export function ProjectPage() {
             </>
           )}
           <span className={`save-state ${saving ? 'busy' : ''}`}>{project && saveLabel}</span>
+          {fullBlock && <ZoomControl view={fullView} onChange={changeFullView} />}
           <div className="segmented" role="group" aria-label="Mode">
             <button className={reading ? 'on' : ''} onClick={() => setReading(true)} title="Reader mode — hide editing tools">
               <Eye width={14} height={14} /> <span className="hide-sm">Read</span>
@@ -592,7 +600,10 @@ export function ProjectPage() {
             </div>
           ) : blockId ? (
             fullBlock ? (
-              <div className="doc doc-full">
+              <div
+                className={`doc doc-full ${fullView.width >= 100 ? 'edge' : ''}`}
+                style={{ '--full-w': fullView.width / 100, '--full-text': fullView.text } as CSSProperties}
+              >
                 <BlockView
                   key={fullBlock.id}
                   block={fullBlock}
