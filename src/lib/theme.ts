@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 export type Theme = 'light' | 'dark'
 
 const KEY = 'manuscript:theme'
+const EVENT = 'manuscript:theme-change'
 const media = () => window.matchMedia('(prefers-color-scheme: dark)')
 
 function saved(): Theme | null {
@@ -43,11 +44,15 @@ export function useTheme() {
         setTheme(t)
       }
     }
+    // Other toggles on this page (sidebar, home, full screen) stay in sync.
+    const onLocal = () => setTheme(currentTheme())
     mq.addEventListener('change', onChange)
     window.addEventListener('storage', onStorage)
+    window.addEventListener(EVENT, onLocal)
     return () => {
       mq.removeEventListener('change', onChange)
       window.removeEventListener('storage', onStorage)
+      window.removeEventListener(EVENT, onLocal)
     }
   }, [])
 
@@ -60,6 +65,7 @@ export function useTheme() {
     }
     apply(next)
     setTheme(next)
+    window.dispatchEvent(new Event(EVENT))
   }
 
   return { theme, toggle }

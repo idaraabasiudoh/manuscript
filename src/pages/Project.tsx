@@ -569,7 +569,12 @@ export function ProjectPage() {
             </>
           )}
           <span className={`save-state ${saving ? 'busy' : ''}`}>{project && saveLabel}</span>
-          {fullBlock && <ZoomControl view={fullView} onChange={changeFullView} />}
+          {fullBlock && (
+            <>
+              <ZoomControl view={fullView} onChange={changeFullView} />
+              <ThemeToggle />
+            </>
+          )}
           <div className="segmented" role="group" aria-label="Mode">
             <button className={reading ? 'on' : ''} onClick={() => setReading(true)} title="Reader mode — hide editing tools">
               <Eye width={14} height={14} /> <span className="hide-sm">Read</span>
