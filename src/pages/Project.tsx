@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlockView } from '../components/Block'
 import { Chat } from '../components/Chat'
-import { Close, Eye, KindIcon, Logo, Menu, Pencil, Plus, Share, Trash } from '../components/Icons'
+import { Close, Eye, KindIcon, Logo, Menu, Pencil, Plus, Share, Trash, ThemeToggle } from '../components/Icons'
 import { NewBlockDialog, type NewBlock } from '../components/NewBlockDialog'
 import {
   addBlock,
@@ -427,9 +427,12 @@ export function ProjectPage() {
             <Link to="/" className="sidebar-logo">
               <Logo />
             </Link>
-            <button className="icon-btn only-mobile" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
-              <Close />
-            </button>
+            <div className="sidebar-top-end">
+              <ThemeToggle />
+              <button className="icon-btn only-mobile" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
+                <Close />
+              </button>
+            </div>
           </div>
 
           {!reading && (

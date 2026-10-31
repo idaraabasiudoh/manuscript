@@ -42,8 +42,10 @@
   color-scheme: light dark;
 }
 
+/* Dark theme: follows the device unless the viewer picked a theme with the toggle
+   (stored on <html data-theme>). The same tokens apply in both cases. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --accent: #8ab4f8;
     --bg: #131314;
     --surface: #1e1f20;
@@ -59,8 +61,28 @@
     --glass: rgba(19, 19, 20, 0.82);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 28px 70px -20px rgba(0, 0, 0, 0.95);
+    color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --accent: #8ab4f8;
+  --bg: #131314;
+  --surface: #1e1f20;
+  --surface-2: #2a2b2d;
+  --surface-3: #37393b;
+  --text: #e3e3e3;
+  --text-2: #c4c7c5;
+  --muted: #9aa0a6;
+  --line: #2b2c2e;
+  --line-strong: #3c4043;
+  --hover: rgba(255, 255, 255, 0.07);
+  --danger: #f28b82;
+  --glass: rgba(19, 19, 20, 0.82);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 28px 70px -20px rgba(0, 0, 0, 0.95);
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 /* ---------- Base ---------- */
 * { box-sizing: border-box; }
@@ -90,6 +112,22 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 /* The glyph sits inside generous transparent padding, so the image is drawn larger than it reads */
 .logo-mark { display: block; width: 46px; height: 46px; margin: -10px -6px -10px -11px; flex-shrink: 0; }
 .logo-mark img { display: block; width: 100%; height: 100%; }
+.logo-mark .logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-mark .logo-light { display: none; }
+  :root:not([data-theme="light"]) .logo-mark .logo-dark { display: block; }
+}
+:root[data-theme="dark"] .logo-mark .logo-light { display: none; }
+:root[data-theme="dark"] .logo-mark .logo-dark { display: block; }
+
+/* Theme toggle: sun in dark mode, moon in light mode */
+.theme-toggle { position: relative; overflow: hidden; }
+.theme-toggle svg { transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.2s; }
+.theme-toggle:active svg { transform: rotate(-30deg) scale(0.9); }
+.home-top-end { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.home-top-end .icon-btn { background: var(--surface); color: var(--text); }
+.home-top-end .icon-btn:hover { background: var(--surface-2); }
+.sidebar-top-end { display: flex; align-items: center; gap: 2px; }
 .logo-word { font-weight: 600; font-size: 17px; letter-spacing: -0.035em; }
 
 /* ---------- Controls ---------- */
@@ -857,8 +895,9 @@ a.res-title svg { color: var(--muted); }
   box-shadow: 0 1px 2px rgba(60, 40, 10, 0.08), 0 18px 44px -22px rgba(60, 40, 10, 0.45), inset 0 0 0 1px rgba(120, 90, 40, 0.08);
 }
 @media (prefers-color-scheme: dark) {
-  .script-page { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
+  :root:not([data-theme="light"]) .script-page { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
 }
+:root[data-theme="dark"] .script-page { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
 .script-page ::selection { background: rgba(155, 114, 203, 0.28); }
 .script-page p { margin: 0; }
 

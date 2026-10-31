@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, KindIcon, Logo } from '../components/Icons'
+import { ArrowRight, KindIcon, Logo, ThemeToggle } from '../components/Icons'
 import { getRecent, NAME_RE, pad, toName } from '../lib/util'
 
 export function HomePage() {
@@ -24,7 +24,10 @@ export function HomePage() {
     <div className="home">
       <header className="home-top">
         <Logo />
-        <span className="mono-label">Shared notebooks for film ideas</span>
+        <div className="home-top-end">
+          <span className="mono-label">Shared notebooks for film ideas</span>
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="home-main">

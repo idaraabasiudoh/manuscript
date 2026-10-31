@@ -17,6 +17,7 @@ import {
   Library,
   Link2,
   Maximize2,
+  Moon,
   Minimize2,
   Minus as LMinus,
   NotebookPen,
@@ -26,6 +27,7 @@ import {
   RotateCcw,
   Share2,
   Sparkles,
+  Sun,
   Square,
   Trash2,
   X,
@@ -33,6 +35,7 @@ import {
   type LucideProps,
 } from 'lucide-react'
 import { useId } from 'react'
+import { useTheme } from '../lib/theme'
 import type { BlockKind } from '../lib/supabase'
 
 const icon = (I: LucideIcon) => {
@@ -99,13 +102,24 @@ export const ManuSpark = ({ size = 18 }: { size?: number }) => {
   )
 }
 
-/** The "m." mark: black glyph on light themes, white glyph on dark themes. */
+/** The "m." mark: black glyph on light themes, white glyph on dark themes (swapped in CSS so it follows the toggle). */
 export const Logo = () => (
   <span className="logo">
-    <picture className="logo-mark">
-      <source srcSet="/icons/white-icon.png" media="(prefers-color-scheme: dark)" />
-      <img src="/icons/black-icon.png" alt="" width={46} height={46} />
-    </picture>
+    <span className="logo-mark">
+      <img className="logo-light" src="/icons/black-icon.png" alt="" width={46} height={46} />
+      <img className="logo-dark" src="/icons/white-icon.png" alt="" width={46} height={46} />
+    </span>
     <span className="logo-word">manuscript</span>
   </span>
 )
+
+/** Switches between light and dark; shows the theme you'll switch to. */
+export const ThemeToggle = ({ className = 'icon-btn' }: { className?: string }) => {
+  const { theme, toggle } = useTheme()
+  const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+  return (
+    <button type="button" className={`${className} theme-toggle`} onClick={toggle} aria-label={label} title={label}>
+      {theme === 'dark' ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
+    </button>
+  )
+}
