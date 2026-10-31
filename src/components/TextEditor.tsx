@@ -1,6 +1,20 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { renderMarkdown } from '../lib/markdown'
 import type { TextKind } from '../lib/supabase'
+import {
+  AlignCenter,
+  Bold,
+  IndentDecrease,
+  IndentIncrease,
+  Italic,
+  Link,
+  List,
+  ListOrdered,
+  Quote,
+  SeparatorHorizontal,
+  Strikethrough,
+  Underline,
+} from 'lucide-react'
 import { Help } from './Icons'
 
 type Props = { kind: TextKind; value: string; onChange: (value: string) => void; autoFocus?: boolean }
@@ -130,26 +144,26 @@ const SIZES: Tool[] = [
 ]
 
 const STYLES: Tool[] = [
-  { id: 'b', label: <b>B</b>, name: 'Bold', help: 'Make the selected words heavier.', shortcut: '⌘B', run: (o) => o.wrap('**', 'bold text') },
-  { id: 'i', label: <i>I</i>, name: 'Italic', help: 'Slant the selected words — for emphasis, titles or thoughts.', shortcut: '⌘I', run: (o) => o.wrap('*', 'italic text') },
-  { id: 'u', label: <u>U</u>, name: 'Underline', help: 'Underline the selected words.', shortcut: '⌘U', run: (o) => o.wrap('++', 'underlined text') },
-  { id: 's', label: <s>S</s>, name: 'Strikethrough', help: 'Cross words out, but keep them visible.', run: (o) => o.wrap('~~', 'crossed out') },
+  { id: 'b', label: <Bold size={16} strokeWidth={2.25} />, name: 'Bold', help: 'Make the selected words heavier.', shortcut: '⌘B', run: (o) => o.wrap('**', 'bold text') },
+  { id: 'i', label: <Italic size={16} strokeWidth={2} />, name: 'Italic', help: 'Slant the selected words — for emphasis, titles or thoughts.', shortcut: '⌘I', run: (o) => o.wrap('*', 'italic text') },
+  { id: 'u', label: <Underline size={16} strokeWidth={2} />, name: 'Underline', help: 'Underline the selected words.', shortcut: '⌘U', run: (o) => o.wrap('++', 'underlined text') },
+  { id: 's', label: <Strikethrough size={16} strokeWidth={2} />, name: 'Strikethrough', help: 'Cross words out, but keep them visible.', run: (o) => o.wrap('~~', 'crossed out') },
 ]
 
 const STRUCTURE: Tool[] = [
-  { id: 'quote', label: '❝', name: 'Quote', help: 'Set a line apart as a quotation or epigraph.', run: (o) => o.linePrefix('> ', /^>/), active: (l) => /^>/.test(l) },
-  { id: 'ul', label: '•', name: 'Bulleted list', help: 'Turn lines into a bulleted list.', run: (o) => o.linePrefix('- ', /^\s*[-•]\s/), active: (l) => /^\s*[-•]\s/.test(l) },
-  { id: 'ol', label: '1.', name: 'Numbered list', help: 'Turn lines into a numbered list.', run: (o) => o.linePrefix((i) => `${i + 1}. `, /^\s*\d+[.)]\s/), active: (l) => /^\s*\d+[.)]\s/.test(l) },
-  { id: 'center', label: '≡', name: 'Center', help: 'Center the line — good for poem titles and dedications.', run: (o) => o.lineWrap('->', '<-'), active: (l) => /^->.*<-$/.test(l) },
-  { id: 'hr', label: '—', name: 'Divider', help: 'A thin line across the page to separate sections.', run: (o) => o.insertLines('---') },
-  { id: 'link', label: '🔗', name: 'Link', help: 'Turn the selected words into a clickable link.', run: (o) => o.link() },
+  { id: 'quote', label: <Quote size={16} strokeWidth={1.9} />, name: 'Quote', help: 'Set a line apart as a quotation or epigraph.', run: (o) => o.linePrefix('> ', /^>/), active: (l) => /^>/.test(l) },
+  { id: 'ul', label: <List size={16} strokeWidth={1.9} />, name: 'Bulleted list', help: 'Turn lines into a bulleted list.', run: (o) => o.linePrefix('- ', /^\s*[-•]\s/), active: (l) => /^\s*[-•]\s/.test(l) },
+  { id: 'ol', label: <ListOrdered size={16} strokeWidth={1.9} />, name: 'Numbered list', help: 'Turn lines into a numbered list.', run: (o) => o.linePrefix((i) => `${i + 1}. `, /^\s*\d+[.)]\s/), active: (l) => /^\s*\d+[.)]\s/.test(l) },
+  { id: 'center', label: <AlignCenter size={16} strokeWidth={1.9} />, name: 'Center', help: 'Center the line — good for poem titles and dedications.', run: (o) => o.lineWrap('->', '<-'), active: (l) => /^->.*<-$/.test(l) },
+  { id: 'hr', label: <SeparatorHorizontal size={16} strokeWidth={1.9} />, name: 'Divider', help: 'A thin line across the page to separate sections.', run: (o) => o.insertLines('---') },
+  { id: 'link', label: <Link size={16} strokeWidth={1.9} />, name: 'Link', help: 'Turn the selected words into a clickable link.', run: (o) => o.link() },
 ]
 
 const EXTRAS: Record<TextKind, Tool[]> = {
   text: [],
   poetry: [
-    { id: 'indent', label: '⇥', name: 'Indent', help: 'Push the line to the right — for cascading lines.', run: (o) => o.indent(1) },
-    { id: 'outdent', label: '⇤', name: 'Outdent', help: 'Pull an indented line back to the left.', run: (o) => o.indent(-1) },
+    { id: 'indent', label: <IndentIncrease size={16} strokeWidth={1.9} />, name: 'Indent', help: 'Push the line to the right — for cascading lines.', run: (o) => o.indent(1) },
+    { id: 'outdent', label: <IndentDecrease size={16} strokeWidth={1.9} />, name: 'Outdent', help: 'Pull an indented line back to the left.', run: (o) => o.indent(-1) },
     { id: 'stanza', label: 'Stanza', name: 'New stanza', help: 'Start a new stanza (an empty line between groups of lines).', run: (o) => o.insertLines('New stanza…', 'New stanza…') },
     { id: 'break', label: '✦', name: 'Section break', help: 'Three stars to separate parts of a poem.', run: (o) => o.insertLines('* * *') },
   ],

@@ -28,7 +28,8 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 ## Style
 
 - Use the single `src/styles.css` with flat class names and CSS custom properties. No CSS modules, no Tailwind.
-- Theme tokens live on `:root`, with a dark override in `prefers-color-scheme`. Brushed chrome (`--chrome`) is the only accent colour. Floating layers (chat, tray, toast) use the inverted `--float-*` tokens.
+- Theme tokens live on `:root`, with a dark override in `prefers-color-scheme`. Brushed chrome (`--chrome`) is the accent colour for the app. The one exception is Manu AI: the blue → violet → rose `--ai-gradient` and the `--ai-*` surface tokens are used only for the assistant. The tray and toast use the inverted `--float-*` tokens.
+- Icons come from [Lucide](https://lucide.dev). Import them through `src/components/Icons.tsx`, which gives every icon the same stroke and size. The editor toolbar and chat import a few Lucide icons directly. Don't hand-draw SVG icons, except the logo and `ManuSpark`.
 - Fonts: Geist for the UI, Geist Mono for labels, Newsreader for poetry and prose, Courier Prime for drama.
 - Write components as function components with hooks. Keep comments short and only where the reason isn't obvious. Two-space indent, no semicolons, single quotes.
 

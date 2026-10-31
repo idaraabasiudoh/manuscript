@@ -632,11 +632,13 @@ export function ProjectPage() {
       {project && (
         <Chat
           project={id}
-          focus={focused ? { id: focused.id, title: focused.title } : undefined}
+          projectTitle={project.title}
+          blocks={blocks.map((b) => ({ id: b.id, title: b.title, kind: b.kind }))}
+          focus={focused ? { id: focused.id, title: focused.title, kind: focused.kind } : undefined}
           open={chatOpen}
           draft={chatDraft}
           onOpenChange={setChatOpen}
-          onClearFocus={() => setFocusId(undefined)}
+          onFocus={setFocusId}
           onInsert={insertFromChat}
         />
       )}

@@ -1,34 +1,62 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import {
+  ArrowUp,
+  Check,
+  Copy,
+  FilePlus2,
+  Image,
+  Lightbulb,
+  ListChecks,
+  Maximize2,
+  MessageSquareText,
+  MessagesSquare,
+  Minimize2,
+  Plus,
+  RotateCcw,
+  Route,
+  Scissors,
+  SearchCheck,
+  Square,
+  SquarePen,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import { renderMarkdown } from '../lib/markdown'
-import { chat, type ChatMessage } from '../lib/supabase'
+import { chat, type BlockKind, type ChatMessage } from '../lib/supabase'
 import { load, save } from '../lib/util'
-import { Check, Close, Expand, Plus, Refresh, Send, Shrink, Spark, Stop, Trash } from './Icons'
+import { KindIcon, ManuSpark } from './Icons'
+
+type BlockRef = { id: string; title: string; kind: BlockKind }
 
 type Props = {
   project: string
-  focus?: { id: string; title: string }
+  projectTitle: string
+  blocks: BlockRef[]
+  focus?: BlockRef
   open: boolean
   draft: { text: string; at: number } | null
   onOpenChange: (open: boolean) => void
-  onClearFocus: () => void
+  onFocus: (id: string | undefined) => void
   onInsert: (text: string) => Promise<void>
 }
 
-const GENERAL = [
-  { title: 'Loglines', prompt: 'Give me five loglines for this idea' },
-  { title: 'Find the gaps', prompt: 'What’s missing from this story so far?' },
-  { title: 'Beat sheet', prompt: 'Turn my notes into a short-film beat sheet' },
-  { title: 'Opening image', prompt: 'Suggest a striking opening image' },
+type Suggestion = { icon: LucideIcon; title: string; prompt: string }
+
+const GENERAL: Suggestion[] = [
+  { icon: Lightbulb, title: 'Brainstorm loglines', prompt: 'Give me five loglines for this idea' },
+  { icon: SearchCheck, title: 'Find the gaps', prompt: 'What’s missing from this story so far?' },
+  { icon: ListChecks, title: 'Build a beat sheet', prompt: 'Turn my notes into a short-film beat sheet' },
+  { icon: Image, title: 'Opening image', prompt: 'Suggest a striking opening image' },
 ]
 
-const focused = (title: string) => [
-  { title: 'Tighten it', prompt: `Tighten the writing in “${title}” and explain what you changed` },
-  { title: 'What next?', prompt: `Suggest three directions for what happens after “${title}”` },
-  { title: 'Feedback', prompt: `Give me honest feedback on “${title}”: what works, what doesn’t` },
-  { title: 'Sharpen dialogue', prompt: `Make the dialogue in “${title}” sharper and more distinct per character` },
+const focused = (title: string): Suggestion[] => [
+  { icon: Scissors, title: 'Tighten it', prompt: `Tighten the writing in “${title}” and explain what you changed` },
+  { icon: Route, title: 'What happens next?', prompt: `Suggest three directions for what happens after “${title}”` },
+  { icon: MessageSquareText, title: 'Honest feedback', prompt: `Give me honest feedback on “${title}”: what works, what doesn’t` },
+  { icon: MessagesSquare, title: 'Sharpen dialogue', prompt: `Make the dialogue in “${title}” sharper and more distinct per character` },
 ]
 
-export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, onInsert }: Props) {
+export function Chat({ project, projectTitle, blocks, focus, open, draft, onOpenChange, onFocus, onInsert }: Props) {
   const key = `chat:${project}`
   const [messages, setMessages] = useState<ChatMessage[]>(() => load(key, []))
   const [input, setInput] = useState('')
@@ -36,6 +64,7 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [wide, setWide] = useState(() => load('chat:wide', false))
+  const [picker, setPicker] = useState(false)
   const abort = useRef<AbortController | null>(null)
   const partial = useRef('')
   const scroller = useRef<HTMLDivElement>(null)
@@ -58,19 +87,23 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
 
   useEffect(() => {
     if (open) requestAnimationFrame(() => inputRef.current?.focus())
+    else setPicker(false)
   }, [open])
 
-  // ⌘J / Ctrl+J toggles the panel; Escape closes it.
+  // ⌘J / Ctrl+J toggles the panel; Escape closes the block picker, then the panel.
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault()
         onOpenChange(!open)
-      } else if (e.key === 'Escape' && open && !document.querySelector('.overlay')) onOpenChange(false)
+      } else if (e.key === 'Escape' && open && !document.querySelector('.overlay')) {
+        if (picker) setPicker(false)
+        else onOpenChange(false)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onOpenChange])
+  }, [open, picker, onOpenChange])
 
   // Follow the stream unless the reader has scrolled up.
   useEffect(() => {
@@ -82,7 +115,8 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
     const el = inputRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+    el.style.overflowY = el.scrollHeight > 200 ? 'auto' : 'hidden'
   }, [input, open])
 
   const run = async (history: ChatMessage[]) => {
@@ -111,12 +145,20 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
     const content = text.trim()
     if (!content || busy) return
     setInput('')
+    setPicker(false)
     run([...messages, { role: 'user', content }])
   }
 
   const regenerate = () => {
     const lastUser = messages.map((m) => m.role).lastIndexOf('user')
     if (lastUser >= 0 && !busy) run(messages.slice(0, lastUser + 1))
+  }
+
+  const newChat = () => {
+    abort.current?.abort()
+    setMessages([])
+    setError('')
+    inputRef.current?.focus()
   }
 
   const submit = (e: FormEvent) => {
@@ -134,72 +176,60 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
   if (!open)
     return (
       <button className="chat-fab" onClick={() => onOpenChange(true)} aria-label="Open Manu AI" title="Manu AI (⌘J)">
-        <span className="manu-mark sm" aria-hidden>
-          <Spark width={13} height={13} />
-        </span>
-        <span className="chat-fab-label">Manu AI</span>
+        <ManuSpark size={20} />
+        <span className="chat-fab-label">Ask Manu AI</span>
       </button>
     )
 
   const suggestions = focus ? focused(focus.title || 'this block') : GENERAL
   const lastAssistant = messages.map((m) => m.role).lastIndexOf('assistant')
+  const empty = messages.length === 0 && !busy
 
   return (
-    <section className={`chat ${wide ? 'wide' : ''}`} aria-label="Manu AI">
+    <section className={`chat ${wide ? 'wide' : ''} ${busy ? 'busy' : ''}`} aria-label="Manu AI">
       <header className="chat-head">
-        <span className="manu-mark" aria-hidden>
-          <Spark width={16} height={16} />
-        </span>
         <div className="chat-id">
+          <ManuSpark size={20} />
           <strong>Manu AI</strong>
-          <span className="chat-sub">
-            <i className={busy ? 'thinking' : ''} /> {busy ? 'Writing…' : 'Your writing partner · reads this project'}
-          </span>
+          <span className="chat-model">3.5 Flash</span>
         </div>
         <div className="chat-tools">
           {messages.length > 0 && (
-            <button
-              className="icon-btn sm"
-              onClick={() => (abort.current?.abort(), setMessages([]), setError(''))}
-              title="New conversation"
-              aria-label="New conversation"
-            >
-              <Trash width={15} height={15} />
+            <button className="chat-icon" onClick={newChat} data-tip="New chat" aria-label="New chat">
+              <SquarePen size={18} strokeWidth={1.75} />
             </button>
           )}
-          <button className="icon-btn sm hide-sm" onClick={() => setWide((w) => !w)} title={wide ? 'Smaller panel' : 'Bigger panel'} aria-label={wide ? 'Smaller panel' : 'Bigger panel'}>
-            {wide ? <Shrink width={15} height={15} /> : <Expand width={15} height={15} />}
+          <button className="chat-icon hide-sm" onClick={() => setWide((w) => !w)} data-tip={wide ? 'Smaller' : 'Bigger'} aria-label={wide ? 'Smaller panel' : 'Bigger panel'}>
+            {wide ? <Minimize2 size={17} strokeWidth={1.75} /> : <Maximize2 size={17} strokeWidth={1.75} />}
           </button>
-          <button className="icon-btn sm" onClick={() => onOpenChange(false)} title="Close (Esc)" aria-label="Close Manu AI">
-            <Close width={16} height={16} />
+          <button className="chat-icon" onClick={() => onOpenChange(false)} data-tip="Close" aria-label="Close Manu AI">
+            <X size={19} strokeWidth={1.75} />
           </button>
         </div>
       </header>
 
       <div
-        className="chat-scroll"
+        className={`chat-scroll ${empty ? 'empty' : ''}`}
         ref={scroller}
         onScroll={(e) => {
           const el = e.currentTarget
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
         }}
       >
-        {messages.length === 0 && !busy && (
+        {empty && (
           <div className="chat-empty">
-            <span className="manu-mark lg" aria-hidden>
-              <Spark width={24} height={24} />
-            </span>
-            <h3>Hi, I’m Manu.</h3>
-            <p>
-              {focus
-                ? `I’m looking at “${focus.title || 'Untitled'}”. Ask me anything about it — or about the whole project.`
-                : 'Stuck on a scene? Need a title, a rhyme, a twist? I’ve read everything in this project.'}
-            </p>
+            <h3 className="chat-hello">
+              <span className="ai-text">Hello there</span>
+              <span className="chat-hello-sub">
+                {focus ? <>What should we do with “{focus.title || 'Untitled'}”?</> : <>How can I help with {projectTitle ? <>“{projectTitle}”</> : 'your project'}?</>}
+              </span>
+            </h3>
             <div className="chat-suggestions">
-              {suggestions.map((s) => (
-                <button key={s.title} onClick={() => send(s.prompt)}>
-                  <strong>{s.title}</strong>
-                  <span>{s.prompt}</span>
+              {suggestions.map(({ icon: Icon, title, prompt }) => (
+                <button key={title} onClick={() => send(prompt)}>
+                  <span className="sugg-title">{title}</span>
+                  <span className="sugg-prompt">{prompt}</span>
+                  <Icon className="sugg-icon" size={18} strokeWidth={1.75} />
                 </button>
               ))}
             </div>
@@ -212,11 +242,17 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
 
         {busy && (
           <div className="msg assistant">
-            <span className="manu-mark xs" aria-hidden>
-              <Spark width={11} height={11} />
+            <span className="msg-avatar thinking">
+              <ManuSpark size={18} />
             </span>
             <div className="msg-body">
-              {pending ? <Rendered text={pending} streaming /> : <span className="typing"><i /><i /><i /></span>}
+              {pending ? (
+                <Rendered text={pending} streaming />
+              ) : (
+                <div className="shimmer" aria-label="Manu is thinking">
+                  <i /> <i /> <i />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -230,36 +266,65 @@ export function Chat({ project, focus, open, draft, onOpenChange, onClearFocus, 
       </div>
 
       <form className="chat-composer" onSubmit={submit}>
-        {focus && (
-          <div className="chat-context">
-            <span className="mono-label">About</span>
-            <span className="chat-context-title truncate">{focus.title || 'Untitled block'}</span>
-            <button type="button" onClick={onClearFocus} aria-label="Ask about the whole project instead" title="Ask about the whole project instead">
-              <Close width={12} height={12} />
+        {picker && (
+          <div className="chat-picker" role="menu">
+            <p className="chat-picker-head">Ask about…</p>
+            <button type="button" role="menuitem" className={!focus ? 'on' : ''} onClick={() => (onFocus(undefined), setPicker(false), inputRef.current?.focus())}>
+              <ManuSpark size={15} />
+              <span className="truncate">The whole project</span>
+              {!focus && <Check size={15} />}
             </button>
+            {blocks.map((b) => (
+              <button type="button" role="menuitem" key={b.id} className={focus?.id === b.id ? 'on' : ''} onClick={() => (onFocus(b.id), setPicker(false), inputRef.current?.focus())}>
+                <KindIcon kind={b.kind} size={15} />
+                <span className="truncate">{b.title || 'Untitled'}</span>
+                {focus?.id === b.id && <Check size={15} />}
+              </button>
+            ))}
           </div>
         )}
         <div className="chat-input">
+          {focus && (
+            <div className="chat-context">
+              <KindIcon kind={focus.kind} size={13} />
+              <span className="truncate">{focus.title || 'Untitled block'}</span>
+              <button type="button" onClick={() => onFocus(undefined)} aria-label="Ask about the whole project instead" title="Ask about the whole project instead">
+                <X size={12} strokeWidth={2} />
+              </button>
+            </div>
+          )}
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={focus ? `Ask about “${focus.title || 'this block'}”…` : 'Ask for ideas, feedback or a rewrite…'}
+            placeholder="Ask Manu AI"
             rows={1}
             aria-label="Message Manu AI"
           />
-          {busy ? (
-            <button type="button" className="send stop" onClick={() => abort.current?.abort()} aria-label="Stop" title="Stop">
-              <Stop width={13} height={13} />
+          <div className="chat-input-row">
+            <button
+              type="button"
+              className={`chat-icon add ${picker ? 'on' : ''}`}
+              onClick={() => setPicker((p) => !p)}
+              data-tip="Choose a block"
+              aria-label="Choose a block to ask about"
+              aria-expanded={picker}
+            >
+              <Plus size={20} strokeWidth={1.75} />
             </button>
-          ) : (
-            <button className="send" disabled={!input.trim()} aria-label="Send" title="Send (Enter)">
-              <Send width={16} height={16} />
-            </button>
-          )}
+            {busy ? (
+              <button type="button" className="send stop" onClick={() => abort.current?.abort()} aria-label="Stop" title="Stop">
+                <Square size={12} fill="currentColor" strokeWidth={0} />
+              </button>
+            ) : (
+              <button className={`send ${input.trim() ? 'ready' : ''}`} disabled={!input.trim()} aria-label="Send" title="Send (Enter)">
+                <ArrowUp size={18} strokeWidth={2.25} />
+              </button>
+            )}
+          </div>
         </div>
-        <p className="chat-hint hide-sm">Enter to send · Shift + Enter for a new line · ⌘J to toggle</p>
+        <p className="chat-hint">Manu AI can make mistakes, so double-check it.</p>
       </form>
     </section>
   )
@@ -271,13 +336,18 @@ function Rendered({ text, streaming }: { text: string; streaming?: boolean }) {
 }
 
 function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; onInsert: (text: string) => Promise<void>; onRegenerate?: () => void }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'adding' | 'added'>('idle')
+  const [copied, setCopied] = useState(false)
+  const [added, setAdded] = useState<'idle' | 'adding' | 'added'>('idle')
   const copy = async () => {
     await navigator.clipboard.writeText(message.content)
-    setState('copied')
-    setTimeout(() => setState('idle'), 1500)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
-  const copyButton = <button onClick={copy}>{state === 'copied' ? <><Check width={12} height={12} /> Copied</> : 'Copy'}</button>
+  const copyButton = (
+    <button className="chat-icon sm" onClick={copy} data-tip={copied ? 'Copied' : 'Copy'} aria-label="Copy">
+      {copied ? <Check size={16} strokeWidth={2} /> : <Copy size={16} strokeWidth={1.75} />}
+    </button>
+  )
 
   if (message.role === 'user')
     return (
@@ -288,29 +358,35 @@ function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; on
     )
 
   const insert = async () => {
-    setState('adding')
+    setAdded('adding')
     try {
       await onInsert(message.content)
-      setState('added')
+      setAdded('added')
     } catch {
-      setState('idle')
+      setAdded('idle')
     }
   }
   return (
     <div className="msg assistant">
-      <span className="manu-mark xs" aria-hidden>
-        <Spark width={11} height={11} />
+      <span className="msg-avatar">
+        <ManuSpark size={18} />
       </span>
       <div className="msg-body">
         <Rendered text={message.content} />
         <div className="msg-actions">
           {copyButton}
-          <button onClick={insert} disabled={state === 'adding' || state === 'added'}>
-            {state === 'added' ? <><Check width={12} height={12} /> Added to page</> : <><Plus width={12} height={12} /> Add as block</>}
+          <button
+            className="chat-icon sm"
+            onClick={insert}
+            disabled={added !== 'idle'}
+            data-tip={added === 'added' ? 'Added to page' : 'Add to page'}
+            aria-label="Add to page as a block"
+          >
+            {added === 'added' ? <Check size={16} strokeWidth={2} /> : <FilePlus2 size={16} strokeWidth={1.75} />}
           </button>
           {onRegenerate && (
-            <button onClick={onRegenerate} title="Write a different answer">
-              <Refresh width={12} height={12} /> Retry
+            <button className="chat-icon sm" onClick={onRegenerate} data-tip="Try again" aria-label="Write a different answer">
+              <RotateCcw size={16} strokeWidth={1.75} />
             </button>
           )}
         </div>
