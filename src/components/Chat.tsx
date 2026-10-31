@@ -272,12 +272,21 @@ function Rendered({ text, streaming }: { text: string; streaming?: boolean }) {
 
 function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; onInsert: (text: string) => Promise<void>; onRegenerate?: () => void }) {
   const [state, setState] = useState<'idle' | 'copied' | 'adding' | 'added'>('idle')
-  if (message.role === 'user') return <div className="msg user">{message.content}</div>
   const copy = async () => {
     await navigator.clipboard.writeText(message.content)
     setState('copied')
     setTimeout(() => setState('idle'), 1500)
   }
+  const copyButton = <button onClick={copy}>{state === 'copied' ? <><Check width={12} height={12} /> Copied</> : 'Copy'}</button>
+
+  if (message.role === 'user')
+    return (
+      <div className="msg user">
+        <div className="msg-text">{message.content}</div>
+        <div className="msg-actions">{copyButton}</div>
+      </div>
+    )
+
   const insert = async () => {
     setState('adding')
     try {
@@ -295,7 +304,7 @@ function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; on
       <div className="msg-body">
         <Rendered text={message.content} />
         <div className="msg-actions">
-          <button onClick={copy}>{state === 'copied' ? <><Check width={12} height={12} /> Copied</> : 'Copy'}</button>
+          {copyButton}
           <button onClick={insert} disabled={state === 'adding' || state === 'added'}>
             {state === 'added' ? <><Check width={12} height={12} /> Added to page</> : <><Plus width={12} height={12} /> Add as block</>}
           </button>
