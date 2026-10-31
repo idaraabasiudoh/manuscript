@@ -538,9 +538,6 @@ export function ProjectPage() {
           ) : (
             <div className="doc">
               <header className="doc-head">
-                <p className="mono-label">
-                  <span className="rec" /> {location.host}/{id}
-                </p>
                 {reading ? (
                   <h1 className="doc-title static">{project.title || 'Untitled project'}</h1>
                 ) : (

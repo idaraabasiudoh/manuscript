@@ -84,10 +84,6 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 .only-mobile, .only-narrow, .touch-only, .editor-top { display: none !important; }
 .mono-label { margin: 0; font: 500 12.5px/1.4 var(--sans); color: var(--muted); }
 .ai-text { background: var(--ai-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.rec {
-  display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; vertical-align: 1px;
-  background: var(--ai-gradient); animation: breathe 2.4s ease-in-out infinite;
-}
 
 /* ---------- Logo ---------- */
 .logo { display: inline-flex; align-items: center; gap: 6px; }
