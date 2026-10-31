@@ -178,7 +178,7 @@ function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
 
 function ScriptBody({ block, script, editing, onPatch, onEdit }: { block: Block; script: Script; editing: boolean; onPatch: (p: BlockPatch) => void; onEdit?: () => void }) {
   const save = (next: Script) => onPatch({ data: { ...block.data, script: next }, body: toText(next) })
-  if (!editing) return <ScriptView script={script} onEdit={onEdit} />
+  if (!editing) return <ScriptView script={script} onEdit={onEdit} onTheme={onEdit ? (theme) => save({ ...script, theme }) : undefined} />
   const original = typeof block.data.originalText === 'string' ? block.data.originalText : undefined
   const revert =
     original === undefined

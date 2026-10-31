@@ -21,7 +21,31 @@ export type Script = {
   meta: { title: string; format: string; genre: string; logline: string; author: string }
   cast: Character[]
   elements: ScriptElement[]
+  /** Look of the reading page (see PAGE_THEMES); shared with everyone who opens the script. */
+  theme?: string
 }
+
+export type PageTheme = { id: string; name: string; paper: string; ink: string; dark?: boolean }
+
+/** Reading-page themes. `parchment` is the default; the first two are pure white/black for maximum contrast. */
+export const PAGE_THEMES: PageTheme[] = [
+  { id: 'parchment', name: 'Parchment', paper: '#fbf7ee', ink: '#24201a' },
+  { id: 'white', name: 'Paper white', paper: '#ffffff', ink: '#000000' },
+  { id: 'black', name: 'Midnight', paper: '#000000', ink: '#ffffff', dark: true },
+  { id: 'typewriter', name: 'Typewriter', paper: '#f2f0eb', ink: '#2a2a2a' },
+  { id: 'sepia', name: 'Sepia', paper: '#f0e2c4', ink: '#47321d' },
+  { id: 'rose', name: 'Rose', paper: '#fbeeee', ink: '#4b1d2a' },
+  { id: 'sage', name: 'Sage', paper: '#e9f0e5', ink: '#1e3324' },
+  { id: 'sky', name: 'Sky', paper: '#eaf2fb', ink: '#14304f' },
+  { id: 'lavender', name: 'Lavender', paper: '#f1edf9', ink: '#2d2148' },
+  { id: 'slate', name: 'Slate', paper: '#1f2329', ink: '#e7eaef', dark: true },
+  { id: 'blueprint', name: 'Blueprint', paper: '#0e2a4b', ink: '#e8f1ff', dark: true },
+  { id: 'forest', name: 'Forest', paper: '#13241a', ink: '#e4efe5', dark: true },
+  { id: 'wine', name: 'Wine', paper: '#2a1219', ink: '#f6e6ea', dark: true },
+  { id: 'terminal', name: 'Terminal', paper: '#0b0b0b', ink: '#ffb341', dark: true },
+]
+
+export const pageTheme = (id?: string) => PAGE_THEMES.find((t) => t.id === id) ?? PAGE_THEMES[0]
 
 export const FORMATS = ['Short Film', 'Feature Film', 'Stage Play', 'Web Series', 'TV Pilot', 'Music Video', 'Commercial', 'Spoken Word']
 export const GENRES = ['Drama', 'Psychological Drama', 'Thriller', 'Comedy', 'Romance', 'Horror', 'Sci-Fi', 'Fantasy', 'Mystery', 'Documentary', 'Coming-of-Age', 'Musical']

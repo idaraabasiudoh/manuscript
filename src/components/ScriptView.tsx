@@ -1,12 +1,13 @@
-import { Pencil } from 'lucide-react'
-import type { CSSProperties } from 'react'
-import { characterVars, sceneHeading, type Script } from '../lib/script'
+import { Check, Palette, Pencil } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { characterVars, PAGE_THEMES, pageTheme, sceneHeading, type Script } from '../lib/script'
 
 /** A structured script laid out like a typed screenplay page. */
-export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => void }) {
+export function ScriptView({ script, onEdit, onTheme }: { script: Script; onEdit?: () => void; onTheme?: (theme: string) => void }) {
   const { meta, cast, elements } = script
   const byId = (id: string) => cast.find((c) => c.id === id)
   const hasTitle = meta.title || meta.author || meta.format || meta.genre || meta.logline
+  const theme = pageTheme(script.theme)
   let sceneNo = 0
 
   if (!hasTitle && !cast.length && !elements.length)
@@ -19,7 +20,12 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
     )
 
   return (
-    <article className="script-page" onDoubleClick={onEdit}>
+    <article
+      className={`script-page ${theme.id !== 'parchment' ? `themed${theme.dark ? ' dark-page' : ''}` : ''}`}
+      style={theme.id !== 'parchment' ? ({ '--paper': theme.paper, '--ink': theme.ink } as CSSProperties) : undefined}
+      onDoubleClick={onEdit}
+    >
+      {onTheme && <ThemePicker value={theme.id} onChange={onTheme} />}
       {hasTitle && (
         <header className="pg-titlepage">
           {meta.title && <h1>{meta.title}</h1>}
@@ -89,5 +95,52 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
         })}
       </div>
     </article>
+  )
+}
+
+/** Palette button in the page corner: pick how the reading page looks. */
+function ThemePicker({ value, onChange }: { value: string; onChange: (theme: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && (e.stopPropagation(), setOpen(false))
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', esc, true)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', esc, true)
+    }
+  }, [open])
+  return (
+    <div className="pg-theme" ref={box} onDoubleClick={(e) => e.stopPropagation()}>
+      <button type="button" className="pg-theme-btn" onClick={() => setOpen((o) => !o)} aria-label="Page theme" aria-expanded={open} title="Page theme">
+        <Palette size={17} strokeWidth={1.75} />
+      </button>
+      {open && (
+        <div className="pg-theme-panel" role="listbox" aria-label="Page theme">
+          <p className="pg-theme-title">Page theme</p>
+          <div className="pg-theme-grid">
+            {PAGE_THEMES.map((t) => (
+              <button
+                type="button"
+                key={t.id}
+                role="option"
+                aria-selected={t.id === value}
+                className={`pg-swatch ${t.id === value ? 'on' : ''}`}
+                onClick={() => onChange(t.id)}
+                title={t.name}
+              >
+                <span className="pg-swatch-chip" style={{ background: t.paper, color: t.ink }}>
+                  Aa{t.id === value && <Check size={12} strokeWidth={3} />}
+                </span>
+                <span className="pg-swatch-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

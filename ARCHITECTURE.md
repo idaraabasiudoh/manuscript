@@ -51,7 +51,7 @@ What `data` holds for each kind:
 - `resources`: `{ items: [{ id, title, url, note }] }`
 - text kinds: `{ template }`, the template the block was started from (shown as a label).
 - `drama` with a structured script: `{ template, script, originalText? }`.
-  - `script` is `{ version: 1, meta: { title, format, genre, logline, author }, cast: [{ id, name, age, description, color }], elements: [...] }`.
+  - `script` is `{ version: 1, meta: { title, format, genre, logline, author }, cast: [{ id, name, age, description, color }], elements: [...], theme? }`. `theme` is a `PAGE_THEMES` id; it's missing for the default, Parchment.
   - Each element has `{ id, type }` plus fields for its type: `scene` (setting, location, time), `action` (text), `dialogue` (character id, parenthetical, text), `transition` (text), `note` (label, text) or `break` (text).
   - `body` always holds the plain screenplay text produced by `toText()`, so word counts, template previews and Manu AI keep working without knowing the structure.
   - `originalText` is kept when a plain-text block is converted, so the writer can switch back.

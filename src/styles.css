@@ -972,11 +972,46 @@ a.res-title svg { color: var(--muted); }
   box-shadow: 0 1px 2px rgba(60, 40, 10, 0.08), 0 18px 44px -22px rgba(60, 40, 10, 0.45), inset 0 0 0 1px rgba(120, 90, 40, 0.08);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .script-page { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
+  :root:not([data-theme="light"]) .script-page:not(.themed) { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
 }
-:root[data-theme="dark"] .script-page { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
+:root[data-theme="dark"] .script-page:not(.themed) { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
 .script-page ::selection { background: rgba(155, 114, 203, 0.28); }
 .script-page .has-ch { --ch-text-l: 33%; }
+
+/* Page themes (chosen with the palette on the page). Inline --paper/--ink come from PAGE_THEMES. */
+.script-page.themed {
+  --ink-2: color-mix(in srgb, var(--ink) 66%, var(--paper));
+  --rule: color-mix(in srgb, var(--ink) 16%, var(--paper));
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 18px 44px -22px rgba(0, 0, 0, 0.4), inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.script-page.dark-page .has-ch { --ch-text-l: 72%; }
+.script-page.dark-page ::selection { background: color-mix(in srgb, var(--ink) 30%, transparent); }
+
+.pg-theme { position: absolute; top: 12px; right: 12px; z-index: 3; font-family: var(--sans); font-style: normal; }
+.pg-theme-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink-2); transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.pg-theme-btn:hover, .pg-theme-btn[aria-expanded='true'] { background: color-mix(in srgb, var(--ink) 14%, transparent); color: var(--ink); }
+.pg-theme-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; width: min(320px, calc(100vw - 48px)); padding: 14px;
+  border-radius: 20px; background: var(--bg); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow);
+  animation: pop 0.14s ease-out; transform-origin: top right;
+}
+.pg-theme-title { margin: 0 2px 10px !important; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.pg-theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px 8px; max-height: min(420px, 60dvh); overflow: auto; padding: 2px; }
+.pg-swatch { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--text-2); cursor: pointer; }
+.pg-swatch-chip {
+  position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1.35; border-radius: 12px;
+  font: 700 16px var(--script); box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.28); transition: transform 0.12s, box-shadow 0.15s;
+}
+.pg-swatch-chip svg { position: absolute; top: 6px; right: 6px; }
+.pg-swatch:hover .pg-swatch-chip { transform: translateY(-1px); }
+.pg-swatch.on .pg-swatch-chip { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ai-2); }
+.pg-swatch-name { font-size: 11.5px; font-weight: 500; text-align: center; }
+.pg-swatch.on .pg-swatch-name { color: var(--text); font-weight: 600; }
+.pg-titlepage { padding-top: 28px !important; }
 .script-page p { margin: 0; }
 
 .pg-titlepage { padding: 12px 0 40px; margin-bottom: 36px; text-align: center; border-bottom: 1px solid var(--rule); }
@@ -1006,8 +1041,8 @@ a.res-title svg { color: var(--muted); }
 .pg-trans { margin: 1.6em 0 !important; text-align: right; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .pg-trans.open { text-align: left; }
 .pg-note {
-  margin: 1.6em 0; padding: 12px 16px; border-radius: 4px; border-left: 3px double var(--ink-2);
-  background: rgba(120, 90, 40, 0.06); font-style: italic; color: var(--ink-2); white-space: pre-wrap;
+  margin: 1.6em 0; padding: 12px 16px; border-radius: 8px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent); font-style: italic; color: var(--ink-2); white-space: pre-wrap;
 }
 .pg-note-label { display: block; margin-bottom: 4px; font-style: normal; font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .pg-break { display: flex; align-items: center; gap: 16px; margin: 3em 0 !important; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-2); }
