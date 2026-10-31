@@ -372,6 +372,20 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 }
 .empty-block:hover { border-color: var(--ai-2); color: var(--text); background: var(--surface); }
 
+/* Open a block full screen (/:project/:block) */
+.block-open { color: var(--muted); opacity: 0.55; transition: opacity 0.15s, background 0.15s, color 0.15s; }
+.block:hover .block-open, .block:focus-within .block-open, .block-open:focus-visible { opacity: 1; }
+.reading .block-open { opacity: 0.55; }
+
+.workspace.fullscreen { grid-template-columns: 1fr; }
+.workspace.fullscreen .sidebar, .workspace.fullscreen .sidebar-scrim { display: none; }
+.return-btn { flex-shrink: 0; height: 38px; padding: 0 16px 0 12px; gap: 6px; }
+.doc-full { max-width: 1120px; padding-top: clamp(12px, 3vh, 28px); }
+.doc-full .block { min-height: calc(100dvh - 140px); padding-top: 26px; }
+.doc-full .block-grip, .doc-full .touch-only { display: none !important; }
+.doc-full .block-title { font-size: clamp(26px, 4cqw, 38px); }
+.reading .doc-full .block { min-height: 0; }
+
 /* Drop indicator */
 .drop-line { position: relative; height: 0; z-index: 3; margin: -8px 0; }
 .drop-line::before { content: ''; position: absolute; left: 8px; right: 8px; top: -1.5px; height: 3px; border-radius: 3px; background: var(--ai-gradient); }
@@ -1026,6 +1040,8 @@ a.res-title svg { color: var(--muted); }
   /* Headroom: clear the status bar / notch, plus breathing room above the toolbar */
   .toolbar { gap: 6px; height: auto; min-height: 76px; padding: calc(env(safe-area-inset-top) + 28px) 10px 10px; }
   .toolbar .btn.primary { width: 40px; padding: 0; }
+  .return-btn { width: 40px; padding: 0; }
+  .doc-full .block { min-height: calc(100dvh - 120px); }
   .segmented button { padding: 0 10px; }
   .save-state { display: none; }
 
@@ -1148,6 +1164,7 @@ a.res-title svg { color: var(--muted); }
 
 /* Touch screens have no hover: show controls, add tap-to-move instead of drag */
 @media (hover: none) {
+  .block-open { opacity: 1; }
   .se-el-tools { opacity: 1; }
   .block-actions, .palette-plus { opacity: 1; }
   .block-grip { display: none; }

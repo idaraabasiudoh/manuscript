@@ -1,4 +1,6 @@
+import { Maximize2 } from 'lucide-react'
 import { useMemo, useState, type DragEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { renderMarkdown } from '../lib/markdown'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem } from '../lib/supabase'
 import { KINDS, TEMPLATES } from '../lib/templates'
@@ -25,9 +27,11 @@ type Props = {
   onMove: (dir: -1 | 1) => void
   canMoveUp: boolean
   canMoveDown: boolean
+  /** Link that opens this block full screen; absent when it already is. */
+  href?: string
 }
 
-export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown }: Props) {
+export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown, href }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const meta = KINDS[block.kind]
@@ -74,6 +78,11 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
             {template && <span className="block-template">· {template.name}</span>}
           </span>
           {isTextKind(block.kind) && block.body && <span className="block-count">{wordCount(block.body)} words</span>}
+          {href && (
+            <Link to={href} className="icon-btn sm block-open" title="Open full screen" aria-label={`Open ${block.title || 'block'} full screen`}>
+              <Maximize2 size={15} strokeWidth={1.75} />
+            </Link>
+          )}
           {!reading && (
             <div className="block-actions">
               {confirming ? (

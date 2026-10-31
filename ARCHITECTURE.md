@@ -78,6 +78,8 @@ Storage: the anon role can **insert** into `project-files`. It can't update, ove
 
 **Opening `/the-last-train`.** `open_project` creates the row if needed and returns everything in one round trip. The client then subscribes to `project:the-last-train` for broadcast and presence.
 
+**Block links.** `/:id/:blockId?` is a single route, so opening a block full screen and returning keeps the page's state and any unsaved edits. `blockId` is the first 8 characters of the block's UUID (`blockSlug()`), matched by prefix within the project. In full-screen mode the same `BlockView` renders alone, with the sidebar and drag-and-drop off. The toolbar swaps in a Return button, and Share uses the block's URL.
+
 **Editing.** Each keystroke updates local state right away. Patches are merged per block and saved after 600 ms of quiet with `update_block`. After each save the client broadcasts `changed`. Other clients debounce for 250 ms, then refetch with `get_project` and merge. A block the viewer is editing, or one with an unsaved patch, keeps its local version.
 
 **Adding a block.** The sidebar palette, the starter cards and the "Add" row all open `NewBlockDialog`, which takes a name plus a template, file or URL. Dragging from the palette sets the insertion position. Creating the block calls `add_block`.

@@ -24,7 +24,8 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/:id" element={<ProjectPage />} />
+          {/* One route for the project and a block opened full screen, so switching keeps state */}
+          <Route path="/:id/:blockId?" element={<ProjectPage />} />
         </Routes>
       </BrowserRouter>
     ) : (

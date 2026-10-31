@@ -94,3 +94,6 @@ export function between(before?: number, after?: number) {
   if (after === undefined) return before + 1
   return (before + after) / 2
 }
+
+/** A block's id in URLs: the first 8 characters of its UUID (resolved by prefix within the project). */
+export const blockSlug = (id: string) => id.slice(0, 8)

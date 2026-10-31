@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlockView } from '../components/Block'
 import { Chat } from '../components/Chat'
@@ -22,7 +23,7 @@ import {
 } from '../lib/supabase'
 import { isScript } from '../lib/script'
 import { KINDS, PALETTE } from '../lib/templates'
-import { between, forgetProject, NAME_RE, pad, plural, rememberProject, timeAgo, wordCount } from '../lib/util'
+import { between, blockSlug, forgetProject, NAME_RE, pad, plural, rememberProject, timeAgo, wordCount } from '../lib/util'
 
 const KIND_MIME = 'application/x-manuscript-kind'
 const BLOCK_MIME = 'application/x-manuscript-block'
@@ -33,7 +34,7 @@ type DropKind = 'palette' | 'block' | 'files'
 type Upload = { id: string; name: string; progress: number; error?: string }
 
 export function ProjectPage() {
-  const { id = '' } = useParams()
+  const { id = '', blockId } = useParams()
   const navigate = useNavigate()
 
   const [project, setProject] = useState<Project | null>(null)
@@ -65,6 +66,9 @@ export function ProjectPage() {
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const blocks = useMemo(() => project?.blocks ?? [], [project])
+  /** The block opened full screen at /:project/:block (matched by its 8-character prefix). */
+  const fullBlock = blockId ? blocks.find((b) => b.id.startsWith(blockId.toLowerCase())) : undefined
+  const lastFull = useRef<string>(undefined)
 
   const flash = useCallback((msg: string) => {
     setToast(msg)
@@ -143,8 +147,38 @@ export function ProjectPage() {
   }, [id, status, refresh])
 
   useEffect(() => {
-    document.title = project ? `${project.title || id} — Manuscript` : 'Manuscript'
-  }, [project, id])
+    const name = project ? project.title || id : ''
+    document.title = !project ? 'Manuscript' : fullBlock ? `${fullBlock.title || 'Untitled'} — ${name}` : `${name} — Manuscript`
+  }, [project, id, fullBlock])
+
+  // Coming back from a full-screen block lands on that block in the project.
+  useEffect(() => {
+    if (fullBlock) {
+      lastFull.current = fullBlock.id
+      setFocusId(fullBlock.id)
+      setSidebarOpen(false)
+      document.querySelector('.doc-scroll')?.scrollTo(0, 0)
+    } else if (!blockId && lastFull.current) {
+      const back = lastFull.current
+      lastFull.current = undefined
+      requestAnimationFrame(() => document.getElementById(`block-${back}`)?.scrollIntoView({ block: 'center' }))
+    }
+  }, [fullBlock?.id, blockId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const returnToProject = useCallback(() => navigate(`/${id}`), [navigate, id])
+
+  // Escape leaves full screen (unless typing, or a dialog or Manu AI is open).
+  useEffect(() => {
+    if (!fullBlock) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || chatOpen || adding || document.querySelector('.overlay')) return
+      const t = e.target as HTMLElement
+      if (t.closest('input, textarea, select, [contenteditable]')) return
+      returnToProject()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullBlock, chatOpen, adding, returnToProject])
 
   // ---- Saving -----------------------------------------------------------------
 
@@ -298,7 +332,7 @@ export function ProjectPage() {
   }
 
   const onDragOver = (e: DragEvent) => {
-    if (reading) return
+    if (reading || fullBlock) return
     const kind = dragKind(e)
     if (!kind) return
     e.preventDefault()
@@ -314,7 +348,7 @@ export function ProjectPage() {
   const onDrop = (e: DragEvent) => {
     const kind = dragKind(e)
     setDrop(null)
-    if (!kind || reading) return
+    if (!kind || reading || fullBlock) return
     e.preventDefault()
     const index = dropIndex(e)
     if (kind === 'palette') {
@@ -359,13 +393,13 @@ export function ProjectPage() {
 
   // ---- Misc actions -----------------------------------------------------------
 
-  /** Copies the link everywhere; on phones and tablets it also opens the OS share sheet. */
-  /** Phones and tablets open the OS share sheet (which has its own Copy); everywhere else copies the link. */
+  /** Phones and tablets open the OS share sheet (which has its own Copy); everywhere else copies the link.
+   *  In full screen it shares that block's own link. */
   const share = () => {
-    const url = `${location.origin}/${id}`
+    const url = `${location.origin}/${id}${fullBlock ? `/${blockSlug(fullBlock.id)}` : ''}`
     const touch = window.matchMedia('(pointer: coarse)').matches
     if (touch && typeof navigator.share === 'function') {
-      navigator.share({ title: project?.title || 'Manuscript', url }).catch(() => {
+      navigator.share({ title: (fullBlock ? fullBlock.title : project?.title) || 'Manuscript', url }).catch(() => {
         /* dismissed */
       })
       return
@@ -420,7 +454,7 @@ export function ProjectPage() {
     )
 
   return (
-    <div className={`workspace ${sidebarOpen ? 'sidebar-open' : ''} ${reading ? 'reading' : ''}`}>
+    <div className={`workspace ${sidebarOpen ? 'sidebar-open' : ''} ${reading ? 'reading' : ''} ${fullBlock ? 'fullscreen' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-inner">
           <div className="sidebar-top">
@@ -504,14 +538,29 @@ export function ProjectPage() {
 
       <div className="main">
         <header className="toolbar">
-          <button className="icon-btn only-mobile" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
-            <Menu />
-          </button>
-          <nav className="crumbs">
-            <Link to="/" className="crumb-root hide-sm">manuscript</Link>
-            <span className="path-sep hide-sm">/</span>
-            <span className="crumb-current truncate">{project?.title || id}</span>
-          </nav>
+          {fullBlock || (blockId && project) ? (
+            <>
+              <button className="btn return-btn" onClick={returnToProject} title="Return to project (Esc)">
+                <ArrowLeft size={17} strokeWidth={2} /> <span className="hide-sm">Return to project</span>
+              </button>
+              <nav className="crumbs">
+                <Link to={`/${id}`} className="crumb-root hide-sm truncate">{project?.title || id}</Link>
+                <span className="path-sep hide-sm">/</span>
+                <span className="crumb-current truncate">{fullBlock ? fullBlock.title || 'Untitled' : 'Block'}</span>
+              </nav>
+            </>
+          ) : (
+            <>
+              <button className="icon-btn only-mobile" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
+                <Menu />
+              </button>
+              <nav className="crumbs">
+                <Link to="/" className="crumb-root hide-sm">manuscript</Link>
+                <span className="path-sep hide-sm">/</span>
+                <span className="crumb-current truncate">{project?.title || id}</span>
+              </nav>
+            </>
+          )}
           <span className={`save-state ${saving ? 'busy' : ''}`}>{project && saveLabel}</span>
           <div className="segmented" role="group" aria-label="Mode">
             <button className={reading ? 'on' : ''} onClick={() => setReading(true)} title="Reader mode — hide editing tools">
@@ -541,6 +590,41 @@ export function ProjectPage() {
                 </div>
               ))}
             </div>
+          ) : blockId ? (
+            fullBlock ? (
+              <div className="doc doc-full">
+                <BlockView
+                  key={fullBlock.id}
+                  block={fullBlock}
+                  index={blocks.indexOf(fullBlock)}
+                  editing={editing.has(fullBlock.id)}
+                  reading={reading}
+                  onEdit={(on) => setBlockEditing(fullBlock.id, on)}
+                  onPatch={(patch) => patchBlock(fullBlock.id, patch)}
+                  onDelete={async () => {
+                    await removeBlock(fullBlock)
+                    returnToProject()
+                  }}
+                  onFocus={() => focusId !== fullBlock.id && setFocusId(fullBlock.id)}
+                  onAsk={() => askAbout(fullBlock)}
+                  onDragStart={() => {}}
+                  onDragEnd={() => {}}
+                  onMove={() => {}}
+                  canMoveUp={false}
+                  canMoveDown={false}
+                />
+              </div>
+            ) : (
+              <div className="doc">
+                <div className="doc-empty">
+                  <strong>This block isn’t here</strong>
+                  <p className="muted">It may have been deleted, or the link is incomplete.</p>
+                  <button className="btn primary" onClick={returnToProject}>
+                    <ArrowLeft size={16} /> Return to project
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <div className="doc">
               <header className="doc-head">
@@ -580,6 +664,7 @@ export function ProjectPage() {
                     onMove={(dir) => moveBlock(i, dir)}
                     canMoveUp={i > 0}
                     canMoveDown={i < blocks.length - 1}
+                    href={`/${id}/${blockSlug(block.id)}`}
                   />,
                 ])}
                 {dropLine(blocks.length)}
