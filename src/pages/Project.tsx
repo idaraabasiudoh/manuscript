@@ -509,11 +509,11 @@ export function ProjectPage() {
           </nav>
           <span className={`save-state ${saving ? 'busy' : ''}`}>{project && saveLabel}</span>
           <div className="segmented" role="group" aria-label="Mode">
-            <button className={!reading ? 'on' : ''} onClick={() => setReading(false)} title="Edit mode">
-              <Pencil width={14} height={14} /> <span className="hide-sm">Edit</span>
-            </button>
             <button className={reading ? 'on' : ''} onClick={() => setReading(true)} title="Reader mode — hide editing tools">
               <Eye width={14} height={14} /> <span className="hide-sm">Read</span>
+            </button>
+            <button className={!reading ? 'on' : ''} onClick={() => setReading(false)} title="Edit mode">
+              <Pencil width={14} height={14} /> <span className="hide-sm">Edit</span>
             </button>
           </div>
           <button className="btn primary" onClick={share}>
