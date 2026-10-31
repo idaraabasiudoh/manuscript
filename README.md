@@ -22,7 +22,7 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 - **Live preview.** The editor shows the formatted result side by side with the text on wide screens, and as Write/Preview tabs on narrow ones.
 - **Structured scripts.** Drama blocks are built from pieces rather than typed freehand:
   - **Title page:** title, format, genre, written by and logline.
-  - **Cast:** each character is created once, with an age and a description, and gets their own colour.
+  - **Cast:** each character is created once, with an age and a description. Each one gets a colour automatically (it can't be picked by hand). Colours are spread around the colour wheel and also vary in shade, so no two characters in a script share one, however many there are. A character's line tiles are tinted in their colour, and their name is written in it on the cast cards, the "Line for" buttons, the character picker and the script page. What they say stays plain, even if it mentions another character's name.
   - **Script pieces:** scene headings (INT./EXT., location, time), action, lines (character, an optional direction, and dialogue), transitions, notes (camera, sound, what happens between scenes) and act breaks.
   - **Adding lines:** each cast member has a one-tap "Line for MAYA"-style button, and ⌘/Ctrl+Enter adds the next line, switching to the other speaker.
   - **Reading:** the script renders as a classic typed page on warm paper, with numbered scenes and indented dialogue.

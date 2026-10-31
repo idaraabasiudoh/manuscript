@@ -55,6 +55,7 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
   4. Add its rendering in `ScriptView.tsx`.
   5. Style it with the `.se-*` (editor) and `.pg-*` (page) classes.
 - The page look (`.script-page`) uses its own paper and ink colours on purpose, in both themes.
+- Character colours come from `characterVars()` in `script.ts`, which turns `Character.color` (an increasing number that's never reused) into a golden-angle hue plus saturation and lightness offsets. Apply them by adding the `has-ch` class and `style={characterVars(c)}` to the element. The stylesheet sets the lightness per theme and on the paper page (`--ch-*-l`). Never colour the dialogue text itself.
 
 ## Gotchas
 

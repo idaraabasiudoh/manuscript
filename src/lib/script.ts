@@ -30,8 +30,20 @@ export const TRANSITIONS = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO BLACK.'
 export const NOTE_LABELS = ['Composition note', "Director's note", 'Camera', 'Sound', 'Music', 'Flashback', 'Montage']
 export const BREAKS = ['END OF ACT ONE', 'INTERMISSION', 'END OF ACT TWO', 'THE END']
 
-/** Eight distinct hues for telling characters apart in the editor. */
-export const CAST_COLORS = ['#4b90ff', '#d96570', '#9b72cb', '#1aa37a', '#e08a2c', '#2bb3c0', '#c2569b', '#7f8c3a']
+/**
+ * Every character gets a colour from its permanent `color` number (assigned once, never chosen by hand).
+ * Hues step around the wheel by the golden angle, so any number of characters stay distinct, and
+ * saturation and lightness rotate too, so neighbours differ in shade as well as hue.
+ * Returned as CSS variables; the stylesheet decides the actual lightness per theme (and on the script page).
+ */
+export function characterVars(c: Pick<Character, 'color'> | undefined): Record<string, string> | undefined {
+  if (!c) return undefined
+  const i = Math.max(0, Math.floor(c.color))
+  const hue = (i * 137.508 + 12) % 360
+  const sat = [78, 62, 88, 70][i % 4]
+  const shift = [0, -8, 6, -4, 9][Math.floor(i / 4) % 5]
+  return { '--ch-h': hue.toFixed(1), '--ch-s': `${sat}%`, '--ch-shift': `${shift}%` }
+}
 
 export const uid = () => crypto.randomUUID().slice(0, 8)
 
@@ -58,9 +70,9 @@ export function newElement(type: ElementType, character = ''): ScriptElement {
 }
 
 export function newCharacter(name: string, cast: Character[], extra: Partial<Character> = {}): Character {
-  const used = new Set(cast.map((c) => c.color))
-  const color = CAST_COLORS.findIndex((_, i) => !used.has(i))
-  return { id: uid(), name: name.trim().toUpperCase(), age: '', description: '', color: color === -1 ? cast.length % CAST_COLORS.length : color, ...extra }
+  // Always the next number, never reused, so no two characters in a script share a colour.
+  const color = cast.reduce((max, c) => Math.max(max, c.color), -1) + 1
+  return { id: uid(), name: name.trim().toUpperCase(), age: '', description: '', color, ...extra }
 }
 
 export function isScript(value: unknown): value is Script {

@@ -33,6 +33,8 @@
   --glow: 0 6px 28px -10px color-mix(in srgb, var(--ai-2) 45%, transparent);
 
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f6672' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  /* Character colours: lightness per surface (hue/saturation come from each character) */
+  --ch-text-l: 36%; --ch-tile-l: 94%; --ch-field-l: 98.5%; --ch-edge-l: 82%; --ch-tile-k: 1;
   --sidebar-w: 280px;
   --gutter: clamp(16px, 5vw, 56px);
 
@@ -48,6 +50,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --accent: #8ab4f8;
+  --ch-text-l: 74%; --ch-tile-l: 17%; --ch-field-l: 11%; --ch-edge-l: 32%; --ch-tile-k: 0.45;
+    --ch-text-l: 74%; --ch-tile-l: 17%; --ch-field-l: 11%; --ch-edge-l: 32%; --ch-tile-k: 0.45;
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     --bg: #131314;
@@ -681,7 +685,10 @@ a.res-title svg { color: var(--muted); }
     padding: 4px 9px; border-radius: 6px; background: var(--ai-text); color: var(--ai-bg); white-space: nowrap;
     font: 500 11.5px var(--sans); pointer-events: none; animation: fade 0.12s 0.25s both;
   }
-  .chat-input-row .chat-icon[data-tip]:hover::after { top: auto; bottom: calc(100% + 6px); }
+  /* Tooltips inside the scrolling message list open upwards: one hanging below the last message would
+     grow the scroll area, shift the button out from under the cursor and flicker. */
+  .chat-input-row .chat-icon[data-tip]:hover::after,
+  .msg-actions .chat-icon[data-tip]:hover::after { top: auto; bottom: calc(100% + 6px); }
 }
 
 .chat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 10px 6px 18px; }
@@ -899,6 +906,24 @@ a.res-title svg { color: var(--muted); }
 .se-revert { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 13px; }
 .se-revert:hover { background: var(--surface); color: var(--text); }
 
+.has-ch {
+  --ch-text: hsl(var(--ch-h) var(--ch-s) calc(var(--ch-text-l) + var(--ch-shift)));
+  --ch-tile: hsl(var(--ch-h) calc(var(--ch-s) * var(--ch-tile-k)) calc(var(--ch-tile-l) + var(--ch-shift) / 3));
+  --ch-field: hsl(var(--ch-h) calc(var(--ch-s) * var(--ch-tile-k)) var(--ch-field-l));
+  --ch-edge: hsl(var(--ch-h) calc(var(--ch-s) * var(--ch-tile-k)) calc(var(--ch-edge-l) + var(--ch-shift) / 2));
+}
+/* A line's whole tile takes its character's colour; names are written in it. What they say stays plain. */
+.se-el.has-ch, .se-char.has-ch { background: var(--ch-tile); }
+.se-el.has-ch:focus-within { border-color: var(--ch-edge); }
+.se-el.has-ch .se-el-type { color: var(--ch-text); }
+.script-editor .se-el.has-ch input, .script-editor .se-el.has-ch textarea, .script-editor .se-el.has-ch select,
+.script-editor .se-char.has-ch input, .script-editor .se-char.has-ch textarea { background-color: var(--ch-field); }
+.script-editor .se-el.has-ch .se-who, .script-editor .se-char.has-ch .se-char-name { color: var(--ch-text); }
+.se-el.has-ch .icon-btn:hover:not(:disabled), .se-char.has-ch .icon-btn:hover:not(:disabled) { background: var(--ch-field); }
+.se-add .chip.se-cue-chip.has-ch { background: var(--ch-tile); color: var(--ch-text); }
+.se-add .chip.se-cue-chip.has-ch:hover:not(:disabled) { background: var(--ch-edge); }
+.pg-cue.has-ch, .pg-cast dt.has-ch { color: var(--ch-text); }
+
 .convert-banner {
   display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 14px 16px 14px 18px; border-radius: 18px;
   background: linear-gradient(var(--surface), var(--surface)) padding-box, var(--ai-gradient) border-box; border: 1.5px solid transparent;
@@ -924,6 +949,7 @@ a.res-title svg { color: var(--muted); }
 }
 :root[data-theme="dark"] .script-page { --paper: #ece4d2; --ink: #1f1b15; --ink-2: #554d40; --rule: #d6cab2; }
 .script-page ::selection { background: rgba(155, 114, 203, 0.28); }
+.script-page .has-ch { --ch-text-l: 33%; }
 .script-page p { margin: 0; }
 
 .pg-titlepage { padding: 12px 0 40px; margin-bottom: 36px; text-align: center; border-bottom: 1px solid var(--rule); }

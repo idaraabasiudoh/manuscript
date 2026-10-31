@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type KeyboardEvent, type Ref, type TextareaHTMLAttributes } from 'react'
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type Ref, type TextareaHTMLAttributes } from 'react'
 import {
   AlignLeft,
   ChevronDown,
@@ -23,6 +23,7 @@ import {
   NOTE_LABELS,
   TIMES,
   TRANSITIONS,
+  characterVars,
   newCharacter,
   newElement,
   type Character,
@@ -154,7 +155,7 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
         {cast.length > 0 && (
           <div className="se-cast">
             {cast.map((c) => (
-              <div className="se-char" key={c.id}>
+              <div className="se-char has-ch" key={c.id} style={characterVars(c) as CSSProperties}>
                 <div className="se-char-top">
                   <input
                     className="se-char-name"
@@ -202,7 +203,7 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
             const speaker = el.type === 'dialogue' ? cast.find((c) => c.id === el.character) : undefined
             if (el.type === 'scene') sceneNo++
             return (
-              <li key={el.id} className={`se-el se-${el.type}`}>
+              <li key={el.id} className={`se-el se-${el.type} ${speaker ? 'has-ch' : ''}`} style={characterVars(speaker) as CSSProperties}>
                 <div className="se-el-head">
                   <span className="se-el-type" title={meta.hint}>
                     <meta.icon size={14} />
@@ -436,7 +437,7 @@ function AddBar({ cast, onAdd, onClose, compact }: { cast: Character[]; onAdd: (
         <div className="se-add-row">
           {cast.length === 0 && <span className="se-add-hint">Add characters to the cast to give them lines</span>}
           {cast.map((c) => (
-            <button type="button" key={c.id} className="chip se-cue-chip" onClick={() => onAdd('dialogue', c.id)}>
+            <button type="button" key={c.id} className="chip se-cue-chip has-ch" style={characterVars(c) as CSSProperties} onClick={() => onAdd('dialogue', c.id)}>
               <MessageSquareQuote size={15} /> {c.name || 'Unnamed'}
             </button>
           ))}

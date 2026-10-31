@@ -1,10 +1,11 @@
 import { Pencil } from 'lucide-react'
-import { sceneHeading, type Script } from '../lib/script'
+import type { CSSProperties } from 'react'
+import { characterVars, sceneHeading, type Script } from '../lib/script'
 
 /** A structured script laid out like a typed screenplay page. */
 export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => void }) {
   const { meta, cast, elements } = script
-  const name = (id: string) => cast.find((c) => c.id === id)?.name || 'UNKNOWN'
+  const byId = (id: string) => cast.find((c) => c.id === id)
   const hasTitle = meta.title || meta.author || meta.format || meta.genre || meta.logline
   let sceneNo = 0
 
@@ -40,7 +41,7 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
           <dl>
             {cast.map((c) => (
               <div key={c.id}>
-                <dt>
+                <dt className="has-ch" style={characterVars(c) as CSSProperties}>
                   {c.name || 'UNNAMED'}
                   {c.age && <span> ({c.age})</span>}
                 </dt>
@@ -68,7 +69,7 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
             case 'dialogue':
               return (
                 <div className="pg-speech" key={e.id}>
-                  <p className="pg-cue">{name(e.character)}</p>
+                  <p className="pg-cue has-ch" style={characterVars(byId(e.character)) as CSSProperties}>{byId(e.character)?.name || 'UNKNOWN'}</p>
                   {e.parenthetical && <p className="pg-paren">({e.parenthetical})</p>}
                   {e.text && <p className="pg-line">{e.text}</p>}
                 </div>
