@@ -1,7 +1,7 @@
 // AI writing assistant for a project. Loads the project's blocks as context, calls the
-// Anthropic Messages API with streaming, and re-streams plain text deltas to the browser.
+// Gemini API with streaming, and re-streams plain text deltas to the browser.
 //
-// Secrets: ANTHROPIC_API_KEY (required), ANTHROPIC_MODEL (optional, default claude-sonnet-5-5).
+// Secrets: GEMINI_API_KEY (required), GEMINI_MODEL (optional, default gemini-3.5-flash).
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
 
 const cors = {
@@ -58,8 +58,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-  if (!apiKey) return json({ error: 'The AI assistant is not configured yet (missing ANTHROPIC_API_KEY).' }, 503)
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) return json({ error: 'The AI assistant is not configured yet (missing GEMINI_API_KEY).' }, 503)
 
   try {
     const { project, messages, focus } = (await req.json()) as { project: string; messages: Msg[]; focus?: string }
@@ -79,24 +79,32 @@ Deno.serve(async (req) => {
     ])
     if (!proj) return json({ error: 'Project not found' }, 404)
 
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-5-5',
-        max_tokens: 2048,
-        stream: true,
-        system: systemPrompt(proj.title, (blocks ?? []) as Block[], focus),
-        messages: history,
-      }),
-    })
+    const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash'
+    const upstream = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
+      {
+        method: 'POST',
+        headers: { 'x-goog-api-key': apiKey, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt(proj.title, (blocks ?? []) as Block[], focus) }] },
+          contents: history.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+          generationConfig: { maxOutputTokens: 4096 },
+        }),
+      },
+    )
     if (!upstream.ok || !upstream.body) {
       const detail = await upstream.text()
-      console.error('Anthropic error', upstream.status, detail)
-      return json({ error: `AI request failed (${upstream.status})` }, 502)
+      console.error('Gemini error', upstream.status, detail)
+      let message = ''
+      try {
+        message = JSON.parse(detail).error?.message ?? ''
+      } catch {
+        /* not JSON */
+      }
+      return json({ error: `AI request failed (${upstream.status})${message ? `: ${message}` : ''}` }, 502)
     }
 
-    // Anthropic SSE → plain text chunks.
+    // Gemini SSE → plain text chunks (thought parts are skipped).
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
     let buffer = ''
@@ -110,10 +118,13 @@ Deno.serve(async (req) => {
             if (!line.startsWith('data:')) continue
             try {
               const event = JSON.parse(line.slice(5))
-              if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-                controller.enqueue(encoder.encode(event.delta.text))
-              } else if (event.type === 'error') {
-                controller.enqueue(encoder.encode(`\n\n[Error: ${event.error?.message ?? 'stream failed'}]`))
+              if (event.error) {
+                controller.enqueue(encoder.encode(`\n\n[Error: ${event.error.message ?? 'stream failed'}]`))
+                continue
+              }
+              const parts = event.candidates?.[0]?.content?.parts ?? []
+              for (const part of parts) {
+                if (typeof part.text === 'string' && !part.thought) controller.enqueue(encoder.encode(part.text))
               }
             } catch {
               /* partial or non-JSON line */

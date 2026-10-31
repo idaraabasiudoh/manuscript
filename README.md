@@ -28,7 +28,7 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 ## Stack
 
 - **Frontend:** Vite, React 19, TypeScript, react-router. pdf.js is lazy-loaded to render PDFs.
-- **Backend:** Supabase. Postgres is accessed only through RPCs, files live in Storage, live sync uses Realtime broadcast and presence, and three Edge Functions handle the AI chat, link previews and deletes.
+- **Backend:** Supabase. Postgres is accessed only through RPCs, files live in Storage, live sync uses Realtime broadcast and presence, and three Edge Functions handle the AI chat (Gemini 3.5 Flash), link previews and deletes.
 - **Hosting:** Vercel, serving the static SPA.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the data model and request flows, and [AGENT.md](AGENT.md) for conventions when working on the code.
@@ -47,11 +47,11 @@ npm run dev
 supabase link --project-ref <ref>
 supabase db push                                   # applies supabase/migrations
 supabase functions deploy chat unfurl delete       # verify_jwt=false is set in supabase/config.toml
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...  # enables the Muse assistant
-# optional: supabase secrets set ANTHROPIC_MODEL=claude-opus-5-5
+supabase secrets set GEMINI_API_KEY=AIza...         # Google AI Studio key; enables the Muse assistant
+# optional: supabase secrets set GEMINI_MODEL=gemini-3.5-flash   (the default)
 ```
 
-Until `ANTHROPIC_API_KEY` is set, the assistant shows "not configured yet". The rest of the app works without it.
+Until `GEMINI_API_KEY` is set, the assistant shows "not configured yet". The rest of the app works without it.
 
 ## Deploying
 
@@ -62,4 +62,4 @@ The app is a static build (`npm run build` → `dist/`). `vercel.json` rewrites 
 - **No auth by design.** Anyone with a project link can edit or delete it. Treat project names like unlisted links.
 - **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, PNG, JPEG, GIF and WebP.
 - **Edit conflicts.** Saves are last-write-wins per block. While you're editing a block, incoming changes to that block are held back so your text doesn't jump.
-- **AI cost.** The assistant runs on your Anthropic key, and anyone with a project link can use it.
+- **AI cost.** The assistant runs on your Gemini key, and anyone with a project link can use it.
