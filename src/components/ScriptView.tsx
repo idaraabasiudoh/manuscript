@@ -1,13 +1,25 @@
-import { Check, Palette, Pencil } from 'lucide-react'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { characterVars, PAGE_THEMES, pageTheme, sceneHeading, type Script } from '../lib/script'
+import { Check, Palette, Pencil, Type } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { characterVars, loadPageFont, PAGE_FONTS, PAGE_THEMES, pageFont, pageTheme, sceneHeading, type PageFont, type Script } from '../lib/script'
 
 /** A structured script laid out like a typed screenplay page. */
-export function ScriptView({ script, onEdit, onTheme }: { script: Script; onEdit?: () => void; onTheme?: (theme: string) => void }) {
+export function ScriptView({
+  script,
+  onEdit,
+  onTheme,
+  onFont,
+}: {
+  script: Script
+  onEdit?: () => void
+  onTheme?: (theme: string) => void
+  onFont?: (font: string) => void
+}) {
   const { meta, cast, elements } = script
   const byId = (id: string) => cast.find((c) => c.id === id)
   const hasTitle = meta.title || meta.author || meta.format || meta.genre || meta.logline
   const theme = pageTheme(script.theme)
+  const font = pageFont(script.font)
+  useEffect(() => loadPageFont(font), [font])
   let sceneNo = 0
 
   if (!hasTitle && !cast.length && !elements.length)
@@ -22,10 +34,20 @@ export function ScriptView({ script, onEdit, onTheme }: { script: Script; onEdit
   return (
     <article
       className={`script-page ${theme.id !== 'parchment' ? `themed${theme.dark ? ' dark-page' : ''}` : ''}`}
-      style={theme.id !== 'parchment' ? ({ '--paper': theme.paper, '--ink': theme.ink } as CSSProperties) : undefined}
+      style={
+        {
+          ...(theme.id !== 'parchment' ? { '--paper': theme.paper, '--ink': theme.ink } : {}),
+          ...(font.id !== 'courier' ? { '--script': font.family } : {}),
+        } as CSSProperties
+      }
       onDoubleClick={onEdit}
     >
-      {onTheme && <ThemePicker value={theme.id} onChange={onTheme} />}
+      {(onTheme || onFont) && (
+        <div className="pg-tools" onDoubleClick={(e) => e.stopPropagation()}>
+          {onFont && <FontPicker value={font.id} onChange={onFont} />}
+          {onTheme && <ThemePicker value={theme.id} onChange={onTheme} />}
+        </div>
+      )}
       {hasTitle && (
         <header className="pg-titlepage">
           {meta.title && <h1>{meta.title}</h1>}
@@ -98,8 +120,8 @@ export function ScriptView({ script, onEdit, onTheme }: { script: Script; onEdit
   )
 }
 
-/** Palette button in the page corner: pick how the reading page looks. */
-function ThemePicker({ value, onChange }: { value: string; onChange: (theme: string) => void }) {
+/** A round button in the page corner that opens a small panel; closes on outside click or Escape. */
+function PagePopover({ label, icon, children }: { label: string; icon: ReactNode; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -114,33 +136,81 @@ function ThemePicker({ value, onChange }: { value: string; onChange: (theme: str
     }
   }, [open])
   return (
-    <div className="pg-theme" ref={box} onDoubleClick={(e) => e.stopPropagation()}>
-      <button type="button" className="pg-theme-btn" onClick={() => setOpen((o) => !o)} aria-label="Page theme" aria-expanded={open} title="Page theme">
-        <Palette size={17} strokeWidth={1.75} />
+    <div className="pg-pop" ref={box}>
+      <button type="button" className="pg-theme-btn" onClick={() => setOpen((o) => !o)} aria-label={label} aria-expanded={open} title={label}>
+        {icon}
       </button>
       {open && (
-        <div className="pg-theme-panel" role="listbox" aria-label="Page theme">
-          <p className="pg-theme-title">Page theme</p>
-          <div className="pg-theme-grid">
-            {PAGE_THEMES.map((t) => (
-              <button
-                type="button"
-                key={t.id}
-                role="option"
-                aria-selected={t.id === value}
-                className={`pg-swatch ${t.id === value ? 'on' : ''}`}
-                onClick={() => onChange(t.id)}
-                title={t.name}
-              >
-                <span className="pg-swatch-chip" style={{ background: t.paper, color: t.ink }}>
-                  Aa{t.id === value && <Check size={12} strokeWidth={3} />}
-                </span>
-                <span className="pg-swatch-name">{t.name}</span>
-              </button>
-            ))}
-          </div>
+        <div className="pg-theme-panel" role="dialog" aria-label={label}>
+          <p className="pg-theme-title">{label}</p>
+          {children(() => setOpen(false))}
         </div>
       )}
     </div>
+  )
+}
+
+/** Pick how the reading page looks. */
+function ThemePicker({ value, onChange }: { value: string; onChange: (theme: string) => void }) {
+  return (
+    <PagePopover label="Page theme" icon={<Palette size={17} strokeWidth={1.75} />}>
+      {() => (
+        <div className="pg-theme-grid" role="listbox" aria-label="Page theme">
+          {PAGE_THEMES.map((t) => (
+            <button
+              type="button"
+              key={t.id}
+              role="option"
+              aria-selected={t.id === value}
+              className={`pg-swatch ${t.id === value ? 'on' : ''}`}
+              onClick={() => onChange(t.id)}
+              title={t.name}
+            >
+              <span className="pg-swatch-chip" style={{ background: t.paper, color: t.ink }}>
+                Aa{t.id === value && <Check size={12} strokeWidth={3} />}
+              </span>
+              <span className="pg-swatch-name">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </PagePopover>
+  )
+}
+
+/** Pick the reading page's typeface; each option previews itself. */
+function FontPicker({ value, onChange }: { value: string; onChange: (font: string) => void }) {
+  useEffect(() => PAGE_FONTS.forEach(loadPageFont), [])
+  const groups = ['Typewriter', 'Serif', 'Sans'] as PageFont['kind'][]
+  return (
+    <PagePopover label="Page font" icon={<Type size={17} strokeWidth={1.75} />}>
+      {() => (
+        <div className="pg-font-list" role="listbox" aria-label="Page font">
+          {groups.map((g) => (
+            <div key={g} className="pg-font-group">
+              <span className="pg-font-kind">{g}</span>
+              {PAGE_FONTS.filter((f) => f.kind === g).map((f) => (
+                <button
+                  type="button"
+                  key={f.id}
+                  role="option"
+                  aria-selected={f.id === value}
+                  className={`pg-font ${f.id === value ? 'on' : ''}`}
+                  onClick={() => onChange(f.id)}
+                >
+                  <span className="pg-font-sample" style={{ fontFamily: f.family }}>
+                    {f.name}
+                  </span>
+                  <span className="pg-font-line" style={{ fontFamily: f.family }}>
+                    INT. KITCHEN - NIGHT
+                  </span>
+                  {f.id === value && <Check className="pg-font-check" size={15} strokeWidth={2.5} />}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </PagePopover>
   )
 }

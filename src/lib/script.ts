@@ -23,6 +23,38 @@ export type Script = {
   elements: ScriptElement[]
   /** Look of the reading page (see PAGE_THEMES); shared with everyone who opens the script. */
   theme?: string
+  /** Typeface of the reading page (see PAGE_FONTS). */
+  font?: string
+}
+
+export type PageFont = { id: string; name: string; family: string; kind: 'Typewriter' | 'Serif' | 'Sans'; google?: string }
+
+/** Reading-page typefaces. Courier Prime is the default (already loaded); others load from Google Fonts on demand. */
+export const PAGE_FONTS: PageFont[] = [
+  { id: 'courier', name: 'Courier Prime', family: "'Courier Prime', 'Courier New', monospace", kind: 'Typewriter' },
+  { id: 'special-elite', name: 'Special Elite', family: "'Special Elite', 'Courier Prime', monospace", kind: 'Typewriter', google: 'Special+Elite' },
+  { id: 'plex-mono', name: 'IBM Plex Mono', family: "'IBM Plex Mono', monospace", kind: 'Typewriter', google: 'IBM+Plex+Mono:ital,wght@0,400;0,700;1,400' },
+  { id: 'space-mono', name: 'Space Mono', family: "'Space Mono', monospace", kind: 'Typewriter', google: 'Space+Mono:ital,wght@0,400;0,700;1,400' },
+  { id: 'newsreader', name: 'Newsreader', family: "Newsreader, Georgia, serif", kind: 'Serif' },
+  { id: 'garamond', name: 'EB Garamond', family: "'EB Garamond', Garamond, serif", kind: 'Serif', google: 'EB+Garamond:ital,wght@0,400;0,700;1,400' },
+  { id: 'lora', name: 'Lora', family: "Lora, Georgia, serif", kind: 'Serif', google: 'Lora:ital,wght@0,400;0,700;1,400' },
+  { id: 'playfair', name: 'Playfair Display', family: "'Playfair Display', Georgia, serif", kind: 'Serif', google: 'Playfair+Display:ital,wght@0,400;0,700;1,400' },
+  { id: 'geist', name: 'Geist', family: "Geist, system-ui, sans-serif", kind: 'Sans' },
+  { id: 'inter', name: 'Inter', family: "Inter, system-ui, sans-serif", kind: 'Sans', google: 'Inter:ital,wght@0,400;0,700;1,400' },
+]
+
+export const pageFont = (id?: string) => PAGE_FONTS.find((f) => f.id === id) ?? PAGE_FONTS[0]
+
+/** Adds the Google Fonts stylesheet for a typeface the first time it's needed. */
+export function loadPageFont(font: PageFont) {
+  if (!font.google || typeof document === 'undefined') return
+  const id = `page-font-${font.id}`
+  if (document.getElementById(id)) return
+  const link = document.createElement('link')
+  link.id = id
+  link.rel = 'stylesheet'
+  link.href = `https://fonts.googleapis.com/css2?family=${font.google}&display=swap`
+  document.head.appendChild(link)
 }
 
 export type PageTheme = { id: string; name: string; paper: string; ink: string; dark?: boolean }
