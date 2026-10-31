@@ -13,7 +13,7 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 - `npm run build`: production build to `dist/`
 - `supabase db push`: apply migrations (project ref `wbcrptqnvwqppqkzkvqg`)
 - `supabase functions deploy chat unfurl delete --project-ref wbcrptqnvwqppqkzkvqg`
-- `supabase secrets set ANTHROPIC_API_KEY=...`
+- `supabase secrets set GEMINI_API_KEY=... GEMINI_MODEL=gemini-3.5-flash`
 
 ## Rules
 
