@@ -34,8 +34,8 @@ export function HomePage() {
           <span className="ai-text">in one script.</span>
         </h1>
         <p className="lede">
-          Name a project to open it. If it doesn’t exist, it’s made on the spot. Write scenes, poems and stories, drop
-          in references and rough cuts, then share the link — anyone with it can add to the page.
+          Write scenes, poems and stories, drop in references and rough cuts. Share projects with people to collab across
+          the web.
         </p>
 
         <form onSubmit={open} className="home-form">
