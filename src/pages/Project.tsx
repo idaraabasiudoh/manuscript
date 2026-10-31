@@ -357,13 +357,20 @@ export function ProjectPage() {
 
   // ---- Misc actions -----------------------------------------------------------
 
-  const share = async () => {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}/${id}`)
-      flash('Link copied — anyone with it can read and edit')
-    } catch {
-      flash(`${location.origin}/${id}`)
+  /** Copies the link everywhere; on phones and tablets it also opens the OS share sheet. */
+  const share = () => {
+    const url = `${location.origin}/${id}`
+    // Everything starts synchronously inside the tap so iOS still treats it as user-initiated.
+    const legacy = copyWithSelection(url)
+    const copied = navigator.clipboard?.writeText(url).then(() => true, () => legacy) ?? Promise.resolve(legacy)
+    const touch = window.matchMedia('(pointer: coarse)').matches
+    const sharing = touch && typeof navigator.share === 'function'
+    if (sharing) {
+      navigator.share({ title: project?.title || 'Manuscript', url }).catch(() => {
+        /* dismissed or unsupported; the link is still copied */
+      })
     }
+    copied.then((ok) => flash(ok || sharing ? 'Link copied' : url))
   }
 
   const askAbout = (block: Block) => {
@@ -704,4 +711,23 @@ function Message({ title, body, children }: { title: string; body: string; child
       {children}
     </div>
   )
+}
+
+/** Copy fallback for browsers that block the async clipboard API (must run inside the user's tap). */
+function copyWithSelection(text: string) {
+  const el = document.createElement('textarea')
+  el.value = text
+  el.setAttribute('readonly', '')
+  el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none'
+  document.body.appendChild(el)
+  el.select()
+  el.setSelectionRange(0, text.length)
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch {
+    ok = false
+  }
+  el.remove()
+  return ok
 }
