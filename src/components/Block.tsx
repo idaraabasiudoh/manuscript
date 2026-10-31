@@ -200,7 +200,7 @@ function AudioCard({ url, name }: { url: string; name: string }) {
     <div className="audio">
       <div className="audio-wave" aria-hidden>
         {Array.from({ length: 48 }, (_, i) => (
-          <i key={i} style={{ height: `${18 + Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6)) * 70}%` }} />
+          <i key={i} style={{ height: `${18 + Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6)) * 70}%`, backgroundPosition: `${(i / 47) * 100}% 0` }} />
         ))}
       </div>
       <p className="audio-name truncate">{name.replace(/\.[^.]+$/, '')}</p>

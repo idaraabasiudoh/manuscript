@@ -405,7 +405,6 @@ export function ProjectPage() {
     )
 
   const totalWords = blocks.reduce((n, b) => n + (isTextKind(b.kind) ? wordCount(b.body) : 0), 0)
-  const fileCount = blocks.filter((b) => b.kind === 'file').length
   const focused = blocks.find((b) => b.id === focusId)
   const saveLabel = saving > 0 ? 'Saving…' : dirtyCount > 0 ? 'Editing' : 'Saved'
 
@@ -507,6 +506,9 @@ export function ProjectPage() {
             <span className="crumb-current truncate">{project?.title || id}</span>
           </nav>
           <span className={`save-state ${saving ? 'busy' : ''}`}>{project && saveLabel}</span>
+          <span className={`live ${live ? 'on' : ''}`} title={live ? `${here} ${here === 1 ? 'person' : 'people'} on this page` : 'Reconnecting…'}>
+            <i /> <span className="live-label">{live ? (here > 1 ? `${here} here` : 'Live') : 'Offline'}</span>
+          </span>
           <div className="segmented" role="group" aria-label="Mode">
             <button className={!reading ? 'on' : ''} onClick={() => setReading(false)} title="Edit mode">
               <Pencil width={14} height={14} /> <span className="hide-sm">Edit</span>
@@ -610,23 +612,10 @@ export function ProjectPage() {
                   ))}
                 </div>
               )}
-              <p className="doc-end" aria-hidden>
-                ✦
-              </p>
             </div>
           )}
         </div>
 
-        <footer className="statusbar">
-          <div className="readout">
-            <span>Blocks<b>{blocks.length}</b></span>
-            <span className="hide-sm">Words<b>{totalWords.toLocaleString()}</b></span>
-            <span className="hide-sm">Files<b>{fileCount}</b></span>
-          </div>
-          <span className={`live ${live ? 'on' : ''}`}>
-            <i /> {live ? (here > 1 ? `Live · ${here} here` : 'Live') : 'Offline'}
-          </span>
-        </footer>
       </div>
 
       {project && (

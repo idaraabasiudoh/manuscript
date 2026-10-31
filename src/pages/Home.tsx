@@ -22,10 +22,6 @@ export function HomePage() {
 
   return (
     <div className="home">
-      <div className="viewfinder" aria-hidden>
-        <i /> <i /> <i /> <i />
-      </div>
-
       <header className="home-top">
         <Logo />
         <span className="mono-label">Shared notebooks for film ideas</span>
@@ -38,7 +34,7 @@ export function HomePage() {
         <h1 className="display">
           Every idea,
           <br />
-          <span className="chrome-text">in one script.</span>
+          <span className="ai-text">in one script.</span>
         </h1>
         <p className="lede">
           Name a project to open it. If it doesn’t exist, it’s made on the spot. Write scenes, poems and stories, drop

@@ -4,7 +4,7 @@ Guidance for AI coding agents (and humans) working on Manuscript. Read [ARCHITEC
 
 ## Project in one paragraph
 
-Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`) is an ordered list of named blocks: poetry, drama, prose, notes, file, link and resources. The frontend is a Vite + React 19 SPA on Vercel. The backend is Supabase: Postgres through RPCs only, Storage for uploads, Realtime for live sync, and Edge Functions for AI chat, link unfurling and deletes. The UI reuses the "Darkroom" design language from the sibling `clipped` project.
+Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`) is an ordered list of named blocks: poetry, drama, prose, notes, file, link and resources. The frontend is a Vite + React 19 SPA on Vercel. The backend is Supabase: Postgres through RPCs only, Storage for uploads, Realtime for live sync, and Edge Functions for AI chat, link unfurling and deletes. The whole UI uses one design language, taken from the Manu AI panel: soft tinted surfaces, rounded pill controls, cards, and a blue → violet → rose gradient as the only accent colour.
 
 ## Commands
 
@@ -28,7 +28,8 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 ## Style
 
 - Use the single `src/styles.css` with flat class names and CSS custom properties. No CSS modules, no Tailwind.
-- Theme tokens live on `:root`, with a dark override in `prefers-color-scheme`. Brushed chrome (`--chrome`) is the accent colour for the app. The one exception is Manu AI: the blue → violet → rose `--ai-gradient` and the `--ai-*` surface tokens are used only for the assistant. The tray and toast use the inverted `--float-*` tokens.
+- Theme tokens live on `:root`, with a dark override in `prefers-color-scheme`: `--bg`, `--surface`, `--surface-2/3`, `--text`, `--text-2`, `--muted`, `--line`, and `--ai-gradient` as the only accent. The `--ai-*` names alias the same tokens for the chat CSS.
+- Use surfaces rather than borders to separate things. Controls are pills (`border-radius: 999px`) and cards use 18–30px radii. Primary buttons are inverse (text colour on the background), and the focused or editing state gets the gradient edge or glow (`--glow`). The tray and toast are inverse.
 - Icons come from [Lucide](https://lucide.dev). Import them through `src/components/Icons.tsx`, which gives every icon the same stroke and size. The editor toolbar and chat import a few Lucide icons directly. Don't hand-draw SVG icons, except the logo and `ManuSpark`.
 - Fonts: Geist for the UI, Geist Mono for labels, Newsreader for poetry and prose, Courier Prime for drama.
 - Write components as function components with hooks. Keep comments short and only where the reason isn't obvious. Two-space indent, no semicolons, single quotes.

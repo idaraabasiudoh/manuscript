@@ -89,7 +89,7 @@ Storage: the anon role can **insert** into `project-files`. It can't update, ove
 ```
 src/
   main.tsx                 router: "/" → Home, "/:id" → Project
-  styles.css               all styles; Darkroom tokens shared with Clipped plus manuscript layout
+  styles.css               all styles: one design language (soft surfaces, pills, cards, AI gradient), shared with Manu AI
   lib/
     supabase.ts            client, types, RPC wrappers, edge-function calls, XHR upload
     markdown.ts            safe formatter (escape first) incl. screenplay rules for drama
