@@ -22,14 +22,14 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 - **Drag and drop.** Drag a block type from the sidebar to a spot on the page, drag the ⋮⋮ grip to reorder, or drop files from your desktop anywhere on the page.
 - **Live collaboration.** Edits autosave and appear for everyone viewing the project. A "Live" pill in the top bar shows how many people are on the page.
 - **Reader mode.** Hides all the editing controls so you can present or share the page cleanly.
-- **Manu AI assistant.** Styled like Gemini: a gradient greeting, suggestion cards, replies without bubbles, a shimmer while it thinks, and a rounded input box whose **+** menu picks which block Manu should focus on. Opens from the bottom-right corner, or with ⌘J / Ctrl+J. It reads the whole project, knows which block you're working on (you can clear that with the "About" chip), streams its replies, offers suggestions that match what you're doing, and lets you retry, copy or turn any reply into a new block. On phones it opens as a full-screen sheet; in landscape it docks to the side.
+- **Manu AI assistant.** A gradient greeting, suggestion cards, replies without bubbles, a shimmer while it thinks, and a rounded input box whose **+** menu picks which block Manu should focus on. Opens from the bottom-right corner, or with ⌘J / Ctrl+J. It reads the whole project, knows which block you're working on (you can clear that with the "About" chip), streams its replies, offers suggestions that match what you're doing, and lets you retry, copy or turn any reply into a new block. On phones it opens as a full-screen sheet; in landscape it docks to the side.
 - **Adapts to any screen.** Desktop, laptop, tablet (the sidebar becomes a drawer below 1024px), phone, and short landscape screens (slimmer toolbars). On phones the formatting toolbar becomes one row you swipe sideways, dialogs open as bottom sheets, and template pickers scroll sideways. PDFs zoom up to 300% and scroll both ways inside their frame. Touch screens get move up/down buttons in place of dragging.
 - **Clean deletes.** Deleting a project removes all of its blocks and uploaded files. Deleting a file block removes its file.
 
 ## Stack
 
 - **Frontend:** Vite, React 19, TypeScript, react-router. pdf.js is lazy-loaded to render PDFs.
-- **Backend:** Supabase. Postgres is accessed only through RPCs, files live in Storage, live sync uses Realtime broadcast and presence, and three Edge Functions handle the AI chat (Gemini 3.5 Flash), link previews and deletes.
+- **Backend:** Supabase. Postgres is accessed only through RPCs, files live in Storage, live sync uses Realtime broadcast and presence, and three Edge Functions handle Manu AI, link previews and deletes.
 - **Hosting:** Vercel, serving the static SPA.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the data model and request flows, and [AGENT.md](AGENT.md) for conventions when working on the code.
@@ -48,11 +48,10 @@ npm run dev
 supabase link --project-ref <ref>
 supabase db push                                   # applies supabase/migrations
 supabase functions deploy chat unfurl delete       # verify_jwt=false is set in supabase/config.toml
-supabase secrets set GEMINI_API_KEY=AIza...         # Google AI Studio key; enables Manu AI
-# optional: supabase secrets set GEMINI_MODEL=gemini-3.5-flash   (the default)
+supabase secrets set MANU_AI_KEY=... MANU_AI_MODEL=...   # enables Manu AI
 ```
 
-Until `GEMINI_API_KEY` is set, the assistant shows "not configured yet". The rest of the app works without it.
+Until both secrets are set, the assistant shows "not configured yet". The rest of the app works without it.
 
 ## Deploying
 
@@ -63,4 +62,4 @@ The app is a static build (`npm run build` → `dist/`). `vercel.json` rewrites 
 - **No auth by design.** Anyone with a project link can edit or delete it. Treat project names like unlisted links.
 - **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, PNG, JPEG, GIF and WebP.
 - **Edit conflicts.** Saves are last-write-wins per block. While you're editing a block, incoming changes to that block are held back so your text doesn't jump.
-- **AI cost.** The assistant runs on your Gemini key, and anyone with a project link can use it.
+- **AI cost.** Manu AI runs on your API key, and anyone with a project link can use it.

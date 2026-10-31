@@ -191,7 +191,6 @@ export function Chat({ project, projectTitle, blocks, focus, open, draft, onOpen
         <div className="chat-id">
           <ManuSpark size={20} />
           <strong>Manu AI</strong>
-          <span className="chat-model">3.5 Flash</span>
         </div>
         <div className="chat-tools">
           {messages.length > 0 && (

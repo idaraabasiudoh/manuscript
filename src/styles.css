@@ -265,10 +265,6 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 .path-sep { color: var(--line-strong); }
 .save-state { font-size: 12.5px; color: var(--muted); }
 .save-state.busy { color: var(--text); }
-.live { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; font-weight: 500; color: var(--muted); }
-.live i { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--line-strong); }
-.live.on { color: var(--text-2); }
-.live.on i { background: var(--ai-gradient); animation: breathe 2.4s ease-in-out infinite; }
 
 /* ==========================================================================
    Document
@@ -640,7 +636,6 @@ a.res-title svg { color: var(--muted); }
 .chat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 10px 6px 18px; }
 .chat-id { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .chat-id strong { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
-.chat-model { padding: 3px 9px; border-radius: 999px; background: var(--ai-surface); color: var(--ai-muted); font: 500 11px var(--sans); white-space: nowrap; }
 .chat-tools { display: flex; gap: 0; }
 
 .chat-scroll { flex: 1; overflow: auto; overscroll-behavior: contain; padding: 14px 20px 12px; display: flex; flex-direction: column; gap: 22px; scrollbar-width: thin; scrollbar-color: var(--ai-surface-2) transparent; }
@@ -850,8 +845,6 @@ a.res-title svg { color: var(--muted); }
   .toolbar .btn.primary { width: 40px; padding: 0; }
   .segmented button { padding: 0 10px; }
   .save-state { display: none; }
-  .live { padding: 0 10px; }
-  .live-label { display: none; }
 
   .doc-head { margin-inline: 2px; }
   .doc-blocks { gap: 12px; }

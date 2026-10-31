@@ -15,7 +15,7 @@ Browser (Vite + React 19 SPA on Vercel)
   │     └── presence             → "N here" counter
   │
   └── Supabase Edge Functions (verify_jwt = false; service role inside)
-        ├── chat    → loads project blocks → Gemini streamGenerateContent (SSE) → plain-text stream
+        ├── chat    → loads project blocks → model provider (streamed) → plain-text stream
         ├── unfurl  → oEmbed (YouTube/Vimeo/Spotify/Loom) or Open Graph scrape → link preview JSON
         └── delete  → removes Storage objects, then deletes project or block rows
 ```
@@ -82,7 +82,7 @@ Storage: the anon role can **insert** into `project-files`. It can't update, ove
 - Block: text-kind blocks use the `delete_block` RPC. File blocks call the `delete` function with `{ block }`, which removes the Storage object and then the row.
 - Project: calls the `delete` function with `{ project }`. It lists every object under `<project>/` (paginated), removes them, then deletes the project row. The cascade removes the blocks. Other open clients get a broadcast, their refetch returns null, and they show "This project was deleted".
 
-**Assistant.** The client sends `{ project, messages (last 16), focus }` to `chat`. The function loads the project's title and blocks with the service role and builds a system prompt. That prompt holds the project content (capped at about 60k characters), notes which block the writer is focused on, and lists the formatting the editor understands. The function calls Gemini (`GEMINI_MODEL`, default `gemini-3.5-flash`) through `streamGenerateContent?alt=sse` and turns the streamed text parts into a plain-text stream for the browser. Thought parts are skipped. Chat history is saved per browser in `localStorage`.
+**Assistant.** The client sends `{ project, messages (last 16), focus }` to `chat`. The function loads the project's title and blocks with the service role and builds a system prompt. That prompt holds the project content (capped at about 60k characters), notes which block the writer is focused on, and lists the formatting the editor understands. The function calls the model set in the `MANU_AI_MODEL` secret, using the `MANU_AI_KEY` secret, with streaming on. It turns the streamed text into a plain-text stream for the browser and skips thought parts. Errors from the provider are logged on the server, and the browser only gets a generic message. The system prompt tells the assistant to present itself only as Manu AI and never name the model or company behind it. Chat history is saved per browser in `localStorage`.
 
 ## Frontend layout
 
@@ -103,7 +103,7 @@ src/
     TextEditor.tsx         toolbar + textarea + live preview + formatting guide
     NewBlockDialog.tsx     name + template / file / URL
     PdfViewer.tsx          pdf.js canvas renderer (lazy chunk)
-    Chat.tsx               Manu AI panel (Gemini-style: greeting, suggestion cards, block picker, shimmer, retry, wide mode, ⌘J)
+    Chat.tsx               Manu AI panel (greeting, suggestion cards, block picker, shimmer, retry, wide mode, ⌘J)
     Icons.tsx              Lucide icon wrappers (shared stroke/size), block-kind icons, logo, Manu AI sparkle
 supabase/
   migrations/              SQL, run in filename order

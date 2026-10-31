@@ -28,9 +28,6 @@ export function HomePage() {
       </header>
 
       <main className="home-main">
-        <p className="mono-label">
-          <span className="rec" /> No accounts · one link · write together
-        </p>
         <h1 className="display">
           Every idea,
           <br />

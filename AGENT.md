@@ -13,7 +13,7 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 - `npm run build`: production build to `dist/`
 - `supabase db push`: apply migrations (project ref `wbcrptqnvwqppqkzkvqg`)
 - `supabase functions deploy chat unfurl delete --project-ref wbcrptqnvwqppqkzkvqg`
-- `supabase secrets set GEMINI_API_KEY=... GEMINI_MODEL=gemini-3.5-flash`
+- `supabase secrets set MANU_AI_KEY=... MANU_AI_MODEL=...`
 
 ## Rules
 
@@ -24,6 +24,8 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 5. **Writers aren't technical.** Never expose markdown syntax as the main way to format. New formatting needs a labelled toolbar button with a plain-English `help` string in `TextEditor.tsx`, an entry in the `Guide`, and support in `markdown.ts`. Update the formatting list in the `chat` function's system prompt too.
 6. **Saves are optimistic and debounced.** Change blocks through `patchBlock` / `queue` in `Project.tsx`. Don't call `updateBlock` directly from components. After any mutation, call `notify()` so other viewers refetch.
 7. **Ordering uses fractional `position`.** Use `between()` from `util.ts`. Don't renumber rows.
+
+8. **Manu AI never names its provider.** Don't put model, company or provider names anywhere a user can see them: UI text, error messages or the docs. The model is set only by the `MANU_AI_MODEL` secret, and provider errors stay in the server logs.
 
 ## Style
 

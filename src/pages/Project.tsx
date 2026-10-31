@@ -49,8 +49,6 @@ export function ProjectPage() {
   const [chatDraft, setChatDraft] = useState<{ text: string; at: number } | null>(null)
   const [saving, setSaving] = useState(0)
   const [dirtyCount, setDirtyCount] = useState(0)
-  const [live, setLive] = useState(false)
-  const [here, setHere] = useState(1)
   const [toast, setToast] = useState('')
   const [uploads, setUploads] = useState<Upload[]>([])
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -130,16 +128,12 @@ export function ProjectPage() {
 
   useEffect(() => {
     if (status !== 'ready') return
-    const ch = supabase.channel(`project:${id}`, { config: { broadcast: { self: false }, presence: { key: crypto.randomUUID() } } })
+    const ch = supabase.channel(`project:${id}`, { config: { broadcast: { self: false } } })
     ch.on('broadcast', { event: 'changed' }, () => {
       clearTimeout(refreshTimer.current)
       refreshTimer.current = setTimeout(refresh, 250)
     })
-      .on('presence', { event: 'sync' }, () => setHere(Math.max(1, Object.keys(ch.presenceState()).length)))
-      .subscribe(async (s) => {
-        setLive(s === 'SUBSCRIBED')
-        if (s === 'SUBSCRIBED') await ch.track({ at: Date.now() })
-      })
+      .subscribe()
     channel.current = ch
     return () => {
       channel.current = null
@@ -506,9 +500,6 @@ export function ProjectPage() {
             <span className="crumb-current truncate">{project?.title || id}</span>
           </nav>
           <span className={`save-state ${saving ? 'busy' : ''}`}>{project && saveLabel}</span>
-          <span className={`live ${live ? 'on' : ''}`} title={live ? `${here} ${here === 1 ? 'person' : 'people'} on this page` : 'Reconnecting…'}>
-            <i /> <span className="live-label">{live ? (here > 1 ? `${here} here` : 'Live') : 'Offline'}</span>
-          </span>
           <div className="segmented" role="group" aria-label="Mode">
             <button className={!reading ? 'on' : ''} onClick={() => setReading(false)} title="Edit mode">
               <Pencil width={14} height={14} /> <span className="hide-sm">Edit</span>
