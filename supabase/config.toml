@@ -1,0 +1,11 @@
+project_id = "manuscript"
+
+# No auth in this app: functions are called with the publishable key, which is not a JWT.
+[functions.chat]
+verify_jwt = false
+
+[functions.unfurl]
+verify_jwt = false
+
+[functions.delete]
+verify_jwt = false
