@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type TextareaHTMLAttributes } from 'react'
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type KeyboardEvent, type Ref, type TextareaHTMLAttributes } from 'react'
 import {
   AlignLeft,
   ChevronDown,
   ChevronUp,
   Clapperboard,
+  List,
   MessageSquareQuote,
   MoveRight,
   Plus,
@@ -17,7 +18,6 @@ import {
 } from 'lucide-react'
 import {
   BREAKS,
-  CAST_COLORS,
   FORMATS,
   GENRES,
   NOTE_LABELS,
@@ -49,8 +49,6 @@ const TYPES: { type: ElementType; label: string; hint: string; icon: LucideIcon 
 ]
 const TYPE_META = Object.fromEntries(TYPES.map((t) => [t.type, t])) as Record<ElementType, (typeof TYPES)[number]>
 
-const color = (c?: Character) => (c ? CAST_COLORS[c.color % CAST_COLORS.length] : 'var(--muted)')
-
 export function ScriptEditor({ script, onChange, onRevert }: Props) {
   const [focusId, setFocusId] = useState<string>()
   const [menuAt, setMenuAt] = useState<string | null>(null)
@@ -62,11 +60,10 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
   const setElement = (id: string, patch: Partial<ScriptElement>) =>
     set({ elements: elements.map((e) => (e.id === id ? ({ ...e, ...patch } as ScriptElement) : e)) })
 
-  const addCharacter = (name = '') => {
-    const c = newCharacter(name, cast)
+  const addCharacter = () => {
+    const c = newCharacter('', cast)
     set({ cast: [...cast, c] })
     setFocusId(c.id)
-    return c
   }
 
   const removeCharacter = (c: Character) => {
@@ -117,18 +114,20 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
       {/* ---- Title page ---- */}
       <section className="se-section">
         <header className="se-head">
-          <h4>Title page</h4>
-          <span className="se-sub">How the script introduces itself</span>
+          <div>
+            <h4>Title page</h4>
+            <p className="se-sub">How the script introduces itself</p>
+          </div>
         </header>
         <input className="se-title" value={meta.title} onChange={(e) => setMeta({ title: e.target.value })} placeholder="SCRIPT TITLE" aria-label="Script title" />
         <div className="se-grid">
           <label className="se-field">
             <span>Format</span>
-            <input list="se-formats" value={meta.format} onChange={(e) => setMeta({ format: e.target.value })} placeholder="Short Film" />
+            <Choice value={meta.format} options={FORMATS} onChange={(format) => setMeta({ format })} placeholder="Choose a format" label="Format" />
           </label>
           <label className="se-field">
             <span>Genre</span>
-            <input list="se-genres" value={meta.genre} onChange={(e) => setMeta({ genre: e.target.value })} placeholder="Drama" />
+            <Choice value={meta.genre} options={GENRES} onChange={(genre) => setMeta({ genre })} placeholder="Choose a genre" label="Genre" />
           </label>
           <label className="se-field">
             <span>Written by</span>
@@ -137,50 +136,46 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
         </div>
         <label className="se-field">
           <span>Logline</span>
-          <AutoText value={meta.logline} onChange={(e) => setMeta({ logline: e.target.value })} placeholder="One sentence: who wants what, and what stands in the way." rows={1} />
+          <AutoText value={meta.logline} onChange={(e) => setMeta({ logline: e.target.value })} placeholder="One sentence: who wants what, and what stands in the way." />
         </label>
-        <datalist id="se-formats">{FORMATS.map((f) => <option key={f} value={f} />)}</datalist>
-        <datalist id="se-genres">{GENRES.map((g) => <option key={g} value={g} />)}</datalist>
       </section>
 
       {/* ---- Cast ---- */}
       <section className="se-section">
         <header className="se-head">
-          <h4>Cast</h4>
-          <span className="se-sub">{cast.length ? `${cast.length} ${cast.length === 1 ? 'character' : 'characters'} — reuse them for every line` : 'Create characters once, then give them lines'}</span>
-          <button type="button" className="chip" onClick={() => addCharacter()}>
-            <UserPlus size={14} /> Add character
+          <div>
+            <h4>Cast</h4>
+            <p className="se-sub">{cast.length ? `${cast.length} ${cast.length === 1 ? 'character' : 'characters'} · reuse them for every line` : 'Create characters once, then give them lines'}</p>
+          </div>
+          <button type="button" className="btn se-head-btn" onClick={addCharacter}>
+            <UserPlus size={16} /> Add character
           </button>
         </header>
         {cast.length > 0 && (
           <div className="se-cast">
             {cast.map((c) => (
-              <div className="se-char" key={c.id} style={{ '--c': color(c) } as CSSProperties}>
-                <span className="se-char-dot" aria-hidden />
-                <div className="se-char-fields">
-                  <div className="se-char-top">
-                    <input
-                      className="se-char-name"
-                      value={c.name}
-                      onChange={(e) => setCharacter(c.id, { name: e.target.value.toUpperCase() })}
-                      placeholder="NAME"
-                      aria-label="Character name"
-                      autoFocus={focusId === c.id}
-                    />
-                    <input className="se-char-age" value={c.age} onChange={(e) => setCharacter(c.id, { age: e.target.value })} placeholder="Age" aria-label="Age" />
-                  </div>
-                  <AutoText
-                    className="se-char-desc"
-                    value={c.description}
-                    onChange={(e) => setCharacter(c.id, { description: e.target.value })}
-                    placeholder="Who are they? What are they hiding?"
-                    rows={1}
-                    aria-label="Description"
+              <div className="se-char" key={c.id}>
+                <div className="se-char-top">
+                  <input
+                    className="se-char-name"
+                    value={c.name}
+                    onChange={(e) => setCharacter(c.id, { name: e.target.value.toUpperCase() })}
+                    placeholder="NAME"
+                    aria-label="Character name"
+                    autoFocus={focusId === c.id}
                   />
+                  <input className="se-char-age" value={c.age} onChange={(e) => setCharacter(c.id, { age: e.target.value })} placeholder="Age" aria-label="Age" />
+                  <button type="button" className="icon-btn sm" onClick={() => removeCharacter(c)} aria-label={`Remove ${c.name || 'character'}`} title="Remove from cast">
+                    <X size={16} />
+                  </button>
                 </div>
-                <button type="button" className="icon-btn sm" onClick={() => removeCharacter(c)} aria-label={`Remove ${c.name || 'character'}`} title="Remove from cast">
-                  <X size={15} />
-                </button>
+                <AutoText
+                  className="se-char-desc"
+                  value={c.description}
+                  onChange={(e) => setCharacter(c.id, { description: e.target.value })}
+                  placeholder="Who are they? What are they hiding?"
+                  aria-label="Description"
+                />
               </div>
             ))}
           </div>
@@ -190,11 +185,16 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
       {/* ---- Script ---- */}
       <section className="se-section">
         <header className="se-head">
-          <h4>Script</h4>
-          <span className="se-sub">⌘ / Ctrl + Enter adds the next line</span>
+          <div>
+            <h4>Script</h4>
+            <p className="se-sub">
+              {elements.length ? `${elements.length} ${elements.length === 1 ? 'piece' : 'pieces'}` : 'Start with a scene'}
+              <span className="se-shortcut"> · ⌘/Ctrl + Enter adds the next line</span>
+            </p>
+          </div>
         </header>
 
-        {elements.length === 0 && <p className="se-empty">Start with a scene, then add action and lines for your characters.</p>}
+        {elements.length === 0 && <p className="se-empty">Add a scene, then action and lines for your characters.</p>}
 
         <ol className="se-elements">
           {elements.map((el, i) => {
@@ -202,151 +202,128 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
             const speaker = el.type === 'dialogue' ? cast.find((c) => c.id === el.character) : undefined
             if (el.type === 'scene') sceneNo++
             return (
-              <li key={el.id} className={`se-el se-${el.type}`} style={{ '--c': color(speaker) } as CSSProperties}>
-                <div className="se-el-type" title={meta.hint}>
-                  <meta.icon size={14} />
-                  <span>{el.type === 'scene' ? `Scene ${sceneNo}` : meta.label}</span>
+              <li key={el.id} className={`se-el se-${el.type}`}>
+                <div className="se-el-head">
+                  <span className="se-el-type" title={meta.hint}>
+                    <meta.icon size={14} />
+                    {el.type === 'scene' ? `Scene ${sceneNo}` : meta.label}
+                  </span>
+                  <div className="se-el-tools">
+                    <button type="button" className="icon-btn sm" onClick={() => move(el.id, -1)} disabled={i === 0} aria-label="Move up" title="Move up">
+                      <ChevronUp size={16} />
+                    </button>
+                    <button type="button" className="icon-btn sm" onClick={() => move(el.id, 1)} disabled={i === elements.length - 1} aria-label="Move down" title="Move down">
+                      <ChevronDown size={16} />
+                    </button>
+                    <button type="button" className={`icon-btn sm ${menuAt === el.id ? 'on' : ''}`} onClick={() => setMenuAt(menuAt === el.id ? null : el.id)} aria-label="Insert below" aria-expanded={menuAt === el.id} title="Insert below">
+                      <Plus size={16} />
+                    </button>
+                    <button type="button" className="icon-btn sm" onClick={() => remove(el.id)} aria-label="Delete" title="Delete">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="se-el-body">
-                  {el.type === 'scene' && (
-                    <div className="se-scene-row">
-                      <select value={el.setting} onChange={(e) => setElement(el.id, { setting: e.target.value as Setting })} aria-label="Inside or outside">
-                        <option value="INT.">INT.</option>
-                        <option value="EXT.">EXT.</option>
-                        <option value="INT./EXT.">INT./EXT.</option>
-                        <option value="">—</option>
+                {el.type === 'scene' && (
+                  <div className="se-scene-row">
+                    <select className="se-setting" value={el.setting} onChange={(e) => setElement(el.id, { setting: e.target.value as Setting })} aria-label="Inside or outside">
+                      <option value="INT.">INT.</option>
+                      <option value="EXT.">EXT.</option>
+                      <option value="INT./EXT.">INT./EXT.</option>
+                      <option value="">None</option>
+                    </select>
+                    <AutoText
+                      className="se-loc"
+                      value={el.location}
+                      onChange={(e) => setElement(el.id, { location: e.target.value.replace(/\n/g, ' ').toUpperCase() })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) e.preventDefault()
+                        onKeyDown(e, el)
+                      }}
+                      placeholder="LOCATION"
+                      aria-label="Location"
+                      autoFocus={focusId === el.id}
+                    />
+                    <Choice className="se-time" value={el.time} options={TIMES} onChange={(time) => setElement(el.id, { time: time.toUpperCase() })} placeholder="Time of day" label="Time of day" upper />
+                  </div>
+                )}
+
+                {el.type === 'action' && (
+                  <AutoText
+                    className="se-text"
+                    value={el.text}
+                    onChange={(e) => setElement(el.id, { text: e.target.value })}
+                    onKeyDown={(e) => onKeyDown(e, el)}
+                    placeholder="What do we see? Present tense."
+                    autoFocus={focusId === el.id}
+                  />
+                )}
+
+                {el.type === 'dialogue' && (
+                  <div className="se-speech">
+                    <div className="se-speech-top">
+                      <select
+                        className="se-who"
+                        value={speaker ? el.character : ''}
+                        onChange={(e) => {
+                          if (e.target.value === '__new') {
+                            const name = window.prompt('New character name')
+                            if (name?.trim()) {
+                              const c = newCharacter(name, cast)
+                              onChange({ ...script, cast: [...cast, c], elements: elements.map((x) => (x.id === el.id ? { ...x, character: c.id } : x)) })
+                            }
+                          } else setElement(el.id, { character: e.target.value })
+                        }}
+                        aria-label="Who speaks"
+                      >
+                        {!speaker && <option value="">Choose character</option>}
+                        {cast.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name || 'Unnamed'}
+                          </option>
+                        ))}
+                        <option value="__new">New character…</option>
                       </select>
-                      <input
-                        className="se-loc"
-                        value={el.location}
-                        onChange={(e) => setElement(el.id, { location: e.target.value.toUpperCase() })}
-                        onKeyDown={(e) => onKeyDown(e, el)}
-                        placeholder="LOCATION"
-                        aria-label="Location"
-                        autoFocus={focusId === el.id}
-                      />
-                      <input
-                        className="se-time"
-                        list="se-times"
-                        value={el.time}
-                        onChange={(e) => setElement(el.id, { time: e.target.value.toUpperCase() })}
-                        placeholder="TIME"
-                        aria-label="Time of day"
+                      <AutoText
+                        className="se-paren"
+                        value={el.parenthetical}
+                        onChange={(e) => setElement(el.id, { parenthetical: e.target.value.replace(/\n/g, ' ').replace(/^\(|\)$/g, '') })}
+                        placeholder="Direction, e.g. quietly (optional)"
+                        aria-label="Direction"
                       />
                     </div>
-                  )}
+                    <AutoText
+                      className="se-text se-line"
+                      value={el.text}
+                      onChange={(e) => setElement(el.id, { text: e.target.value })}
+                      onKeyDown={(e) => onKeyDown(e, el)}
+                      placeholder="What they say…"
+                      autoFocus={focusId === el.id}
+                    />
+                  </div>
+                )}
 
-                  {el.type === 'action' && (
+                {el.type === 'transition' && (
+                  <Choice className="se-trans" value={el.text} options={TRANSITIONS} onChange={(text) => setElement(el.id, { text: text.toUpperCase() })} placeholder="Choose a transition" label="Transition" upper />
+                )}
+
+                {el.type === 'note' && (
+                  <div className="se-note">
+                    <Choice className="se-note-label" value={el.label} options={NOTE_LABELS} onChange={(label) => setElement(el.id, { label })} placeholder="Note type" label="Note type" />
                     <AutoText
                       className="se-text"
                       value={el.text}
                       onChange={(e) => setElement(el.id, { text: e.target.value })}
                       onKeyDown={(e) => onKeyDown(e, el)}
-                      placeholder="What do we see? Present tense."
+                      placeholder="Camera moves, sound, or what happens between scenes…"
                       autoFocus={focusId === el.id}
                     />
-                  )}
+                  </div>
+                )}
 
-                  {el.type === 'dialogue' && (
-                    <div className="se-speech">
-                      <div className="se-speech-top">
-                        <select
-                          className="se-who"
-                          value={speaker ? el.character : ''}
-                          onChange={(e) => {
-                            if (e.target.value === '__new') {
-                              const name = window.prompt('New character name')
-                              if (name?.trim()) {
-                                const c = newCharacter(name, cast)
-                                onChange({ ...script, cast: [...cast, c], elements: elements.map((x) => (x.id === el.id ? { ...x, character: c.id } : x)) })
-                              }
-                            } else setElement(el.id, { character: e.target.value })
-                          }}
-                          aria-label="Who speaks"
-                        >
-                          {!speaker && <option value="">Choose character…</option>}
-                          {cast.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name || 'UNNAMED'}
-                            </option>
-                          ))}
-                          <option value="__new">+ New character…</option>
-                        </select>
-                        <input
-                          className="se-paren"
-                          value={el.parenthetical}
-                          onChange={(e) => setElement(el.id, { parenthetical: e.target.value.replace(/^\(|\)$/g, '') })}
-                          placeholder="(how it's said — optional)"
-                          aria-label="Direction"
-                        />
-                      </div>
-                      <AutoText
-                        className="se-text se-line"
-                        value={el.text}
-                        onChange={(e) => setElement(el.id, { text: e.target.value })}
-                        onKeyDown={(e) => onKeyDown(e, el)}
-                        placeholder="What they say…"
-                        autoFocus={focusId === el.id}
-                      />
-                    </div>
-                  )}
-
-                  {el.type === 'transition' && (
-                    <input
-                      className="se-trans"
-                      list="se-transitions"
-                      value={el.text}
-                      onChange={(e) => setElement(el.id, { text: e.target.value.toUpperCase() })}
-                      onKeyDown={(e) => onKeyDown(e, el)}
-                      placeholder="CUT TO:"
-                      aria-label="Transition"
-                      autoFocus={focusId === el.id}
-                    />
-                  )}
-
-                  {el.type === 'note' && (
-                    <div className="se-note">
-                      <input className="se-note-label" list="se-note-labels" value={el.label} onChange={(e) => setElement(el.id, { label: e.target.value })} placeholder="Note" aria-label="Note type" />
-                      <AutoText
-                        className="se-text"
-                        value={el.text}
-                        onChange={(e) => setElement(el.id, { text: e.target.value })}
-                        onKeyDown={(e) => onKeyDown(e, el)}
-                        placeholder="Camera moves, sound, or what happens between scenes…"
-                        autoFocus={focusId === el.id}
-                      />
-                    </div>
-                  )}
-
-                  {el.type === 'break' && (
-                    <input
-                      className="se-break"
-                      list="se-breaks"
-                      value={el.text}
-                      onChange={(e) => setElement(el.id, { text: e.target.value.toUpperCase() })}
-                      onKeyDown={(e) => onKeyDown(e, el)}
-                      placeholder="END OF ACT ONE"
-                      aria-label="Break label"
-                      autoFocus={focusId === el.id}
-                    />
-                  )}
-                </div>
-
-                <div className="se-el-tools">
-                  <button type="button" className="icon-btn sm" onClick={() => move(el.id, -1)} disabled={i === 0} aria-label="Move up" title="Move up">
-                    <ChevronUp size={15} />
-                  </button>
-                  <button type="button" className="icon-btn sm" onClick={() => move(el.id, 1)} disabled={i === elements.length - 1} aria-label="Move down" title="Move down">
-                    <ChevronDown size={15} />
-                  </button>
-                  <button type="button" className={`icon-btn sm ${menuAt === el.id ? 'on' : ''}`} onClick={() => setMenuAt(menuAt === el.id ? null : el.id)} aria-label="Insert below" title="Insert below">
-                    <Plus size={15} />
-                  </button>
-                  <button type="button" className="icon-btn sm" onClick={() => remove(el.id)} aria-label="Delete" title="Delete">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {el.type === 'break' && (
+                  <Choice className="se-break" value={el.text} options={BREAKS} onChange={(text) => setElement(el.id, { text: text.toUpperCase() })} placeholder="Choose a break" label="Break" upper />
+                )}
 
                 {menuAt === el.id && <AddBar cast={cast} onAdd={(t, c) => insert(t, el.id, c)} onClose={() => setMenuAt(null)} compact />}
               </li>
@@ -355,11 +332,6 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
         </ol>
 
         <AddBar cast={cast} onAdd={(t, c) => insert(t, undefined, c)} />
-
-        <datalist id="se-times">{TIMES.map((t) => <option key={t} value={t} />)}</datalist>
-        <datalist id="se-transitions">{TRANSITIONS.map((t) => <option key={t} value={t} />)}</datalist>
-        <datalist id="se-note-labels">{NOTE_LABELS.map((t) => <option key={t} value={t} />)}</datalist>
-        <datalist id="se-breaks">{BREAKS.map((t) => <option key={t} value={t} />)}</datalist>
       </section>
 
       {onRevert && (
@@ -371,39 +343,113 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
   )
 }
 
+/**
+ * A native OS dropdown of common choices, with "Other…" for typing your own.
+ * Custom values (anything not in the list) show as a text field with a button back to the list.
+ */
+function Choice({
+  value,
+  options,
+  onChange,
+  placeholder,
+  label,
+  className = '',
+  upper,
+}: {
+  value: string
+  options: string[]
+  onChange: (value: string) => void
+  placeholder: string
+  label: string
+  className?: string
+  upper?: boolean
+}) {
+  const known = options.includes(value)
+  const [custom, setCustom] = useState(!known && value !== '')
+  const input = useRef<HTMLTextAreaElement>(null)
+
+  if (custom)
+    return (
+      <div className={`se-choice ${className}`}>
+        <AutoText
+          ref={input}
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\n/g, ' ')
+            onChange(upper ? v.toUpperCase() : v)
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+          placeholder={`Type a ${label.toLowerCase()}`}
+          aria-label={label}
+        />
+        <button type="button" className="icon-btn sm" onClick={() => setCustom(false)} title="Choose from the list" aria-label="Choose from the list">
+          <List size={16} />
+        </button>
+      </div>
+    )
+
+  return (
+    <select
+      className={className}
+      value={known ? value : ''}
+      aria-label={label}
+      onChange={(e) => {
+        if (e.target.value === '__other') {
+          setCustom(true)
+          onChange('')
+          requestAnimationFrame(() => input.current?.focus())
+        } else onChange(e.target.value)
+      }}
+    >
+      {!known && <option value="">{placeholder}</option>}
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+      <option value="__other">Other…</option>
+    </select>
+  )
+}
+
 /** Buttons to add script pieces; every cast member gets a one-tap "line" button. */
 function AddBar({ cast, onAdd, onClose, compact }: { cast: Character[]; onAdd: (type: ElementType, character?: string) => void; onClose?: () => void; compact?: boolean }) {
   return (
     <div className={`se-add ${compact ? 'compact' : ''}`}>
-      <div className="se-add-row">
-        <span className="se-add-label">{compact ? 'Insert' : 'Add'}</span>
-        {TYPES.filter((t) => t.type !== 'dialogue').map(({ type, label, hint, icon: Icon }) => (
-          <button type="button" key={type} className="chip" onClick={() => onAdd(type)} title={hint}>
-            <Icon size={14} /> {label}
-          </button>
-        ))}
+      <div className="se-add-group">
+        <span className="se-add-label">{compact ? 'Insert below' : 'Add to script'}</span>
+        <div className="se-add-row">
+          {TYPES.filter((t) => t.type !== 'dialogue').map(({ type, label, hint, icon: Icon }) => (
+            <button type="button" key={type} className="chip" onClick={() => onAdd(type)} title={hint}>
+              <Icon size={15} /> {label}
+            </button>
+          ))}
+        </div>
         {onClose && (
-          <button type="button" className="icon-btn sm" onClick={onClose} aria-label="Close">
-            <X size={15} />
+          <button type="button" className="icon-btn sm se-add-close" onClick={onClose} aria-label="Close">
+            <X size={16} />
           </button>
         )}
       </div>
-      <div className="se-add-row">
+      <div className="se-add-group">
         <span className="se-add-label">Line for</span>
-        {cast.length === 0 && <span className="se-add-hint">Add characters to the cast to give them lines</span>}
-        {cast.map((c) => (
-          <button type="button" key={c.id} className="chip se-cue-chip" style={{ '--c': color(c) } as CSSProperties} onClick={() => onAdd('dialogue', c.id)}>
-            <span className="se-char-dot" aria-hidden /> {c.name || 'UNNAMED'}
-          </button>
-        ))}
+        <div className="se-add-row">
+          {cast.length === 0 && <span className="se-add-hint">Add characters to the cast to give them lines</span>}
+          {cast.map((c) => (
+            <button type="button" key={c.id} className="chip se-cue-chip" onClick={() => onAdd('dialogue', c.id)}>
+              <MessageSquareQuote size={15} /> {c.name || 'Unnamed'}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
 }
 
 /** A textarea that grows with its content. */
-function AutoText(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+function AutoText({ ref: outer, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  useImperativeHandle(outer, () => ref.current!, [])
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
