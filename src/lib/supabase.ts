@@ -28,7 +28,7 @@ export type Block = {
   kind: BlockKind
   title: string
   body: string
-  data: Partial<FileData & LinkData & ResourcesData & TextData>
+  data: Partial<FileData & LinkData & ResourcesData & TextData> & { script?: unknown; originalText?: string }
   position: number
   created: string
   updated: string

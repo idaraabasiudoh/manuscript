@@ -50,6 +50,12 @@ What `data` holds for each kind:
 - `link`: `{ url, title, description, image, site }`, captured once when the block is created.
 - `resources`: `{ items: [{ id, title, url, note }] }`
 - text kinds: `{ template }`, the template the block was started from (shown as a label).
+- `drama` with a structured script: `{ template, script, originalText? }`.
+  - `script` is `{ version: 1, meta: { title, format, genre, logline, author }, cast: [{ id, name, age, description, color }], elements: [...] }`.
+  - Each element has `{ id, type }` plus fields for its type: `scene` (setting, location, time), `action` (text), `dialogue` (character id, parenthetical, text), `transition` (text), `note` (label, text) or `break` (text).
+  - `body` always holds the plain screenplay text produced by `toText()`, so word counts, template previews and Manu AI keep working without knowing the structure.
+  - `originalText` is kept when a plain-text block is converted, so the writer can switch back.
+  - Logic lives in `src/lib/script.ts`: `parseScript()`, `toText()` and the element helpers.
 
 ### Access model
 
@@ -93,6 +99,7 @@ src/
   lib/
     supabase.ts            client, types, RPC wrappers, edge-function calls, XHR upload
     markdown.ts            safe formatter (escape first) incl. screenplay rules for drama
+    script.ts              structured script model, text parser (plain → structured) and serializer
     templates.ts           block kinds metadata + templates per text kind
     util.ts                names, recent projects, positions, formatting helpers
   pages/
@@ -101,6 +108,8 @@ src/
   components/
     Block.tsx              block shell + bodies (text preview, file, link, resources)
     TextEditor.tsx         toolbar + textarea + live preview + formatting guide
+    ScriptEditor.tsx       structured Drama builder: title page, cast, script pieces, add bars
+    ScriptView.tsx         structured script as a typed screenplay page
     NewBlockDialog.tsx     name + template / file / URL
     PdfViewer.tsx          pdf.js canvas renderer (lazy chunk)
     Chat.tsx               Manu AI panel (greeting, suggestion cards, block picker, shimmer, retry, wide mode, ⌘J)

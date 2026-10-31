@@ -9,7 +9,7 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 | Block | What it's for | Preview |
 |-------|---------------|---------|
 | **Poetry** | Verse, lyrics, voice-over | Serif, keeps line breaks and indentation, stanza and section breaks |
-| **Drama** | Screenplays and stage plays | Industry-style scene headings, character cues, dialogue, parentheticals and transitions |
+| **Drama** | Screenplays and stage plays | A structured script builder (title page, reusable cast, and scenes, lines, transitions, notes and act breaks), read as a typed screenplay page |
 | **Prose** | Stories, treatments, synopses | Book-style paragraphs, chapters and scene breaks |
 | **Notes** | Loglines, pitches, shot lists | Clean sans-serif text |
 | **File** | PDF, MP4, MP3 or image (up to 50 MB) | PDF pages render inline, plus video/audio players and images |
@@ -20,6 +20,13 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 
 - **Writer-friendly formatting.** Labelled buttons (Title / Heading / Subheading / Body, **B** *I* <u>U</u> ~~S~~, quote, lists, center, divider, link) plus buttons specific to each kind: *Scene, Character, (beat), CUT TO:* for drama, *Indent / Stanza* for poetry, *Chapter / Scene break* for prose. Every button has a plain-English tooltip, and a **?** guide explains the rest. Writers never need to know markdown.
 - **Live preview.** The editor shows the formatted result side by side with the text on wide screens, and as Write/Preview tabs on narrow ones.
+- **Structured scripts.** Drama blocks are built from pieces rather than typed freehand:
+  - **Title page:** title, format, genre, written by and logline.
+  - **Cast:** each character is created once, with an age and a description, and gets their own colour.
+  - **Script pieces:** scene headings (INT./EXT., location, time), action, lines (character, an optional direction, and dialogue), transitions, notes (camera, sound, what happens between scenes) and act breaks.
+  - **Adding lines:** each cast member has a one-tap "Line for MAYA"-style button, and ⌘/Ctrl+Enter adds the next line, switching to the other speaker.
+  - **Reading:** the script renders as a classic typed page on warm paper, with numbered scenes and indented dialogue.
+  - **Older scripts:** a plain-text drama block can be converted with one click, and the original text is kept so you can switch back.
 - **Templates.** Pick one when adding a block: screenplay scene, stage play, short-film beat sheet, sonnet, haiku sequence, song lyrics, short story, synopsis, film treatment, pitch, shot list and character sheet.
 - **Drag and drop.** Drag a block type from the sidebar to a spot on the page, drag the ⋮⋮ grip to reorder, or drop files from your desktop anywhere on the page.
 - **Live collaboration.** Edits autosave and appear for everyone viewing the project. A "Live" pill in the top bar shows how many people are on the page.

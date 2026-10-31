@@ -20,6 +20,7 @@ import {
   type BlockPatch,
   type Project,
 } from '../lib/supabase'
+import { isScript } from '../lib/script'
 import { KINDS, PALETTE } from '../lib/templates'
 import { between, forgetProject, NAME_RE, pad, plural, rememberProject, timeAgo, wordCount } from '../lib/util'
 
@@ -223,7 +224,8 @@ export function ProjectPage() {
   const createBlock = async (nb: NewBlock, position: number) => {
     const block = await addBlock(id, { ...nb, position })
     setProject((p) => p && { ...p, blocks: [...p.blocks, block].sort((a, b) => a.position - b.position) })
-    if (isTextKind(block.kind) && !block.body) setEditing((s) => new Set(s).add(block.id))
+    const blankScript = isScript(block.data.script) && block.data.script.elements.length === 0
+    if (isTextKind(block.kind) && (!block.body || blankScript)) setEditing((s) => new Set(s).add(block.id))
     setFocusId(block.id)
     notify()
     scrollTo(block.id)

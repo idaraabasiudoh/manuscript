@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { renderMarkdown } from '../lib/markdown'
+import { emptyScript, parseScript, toText } from '../lib/script'
 import { ACCEPT_ATTR, isTextKind, mimeFor, unfurl, uploadFile, type Block, type BlockKind, type LinkData } from '../lib/supabase'
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes } from '../lib/util'
@@ -57,7 +58,14 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
     setBusy(true)
     try {
       if (isTextKind(kind)) {
-        await onCreate({ kind, title, body: template?.body ?? '', data: { template: templateId } })
+        if (kind === 'drama' && templateId !== 'treatment') {
+          // Scripts start structured: a title page, a reusable cast and script pieces.
+          const script = template?.body ? parseScript(template.body, title) : emptyScript({ title })
+          if (!script.meta.title) script.meta.title = title
+          await onCreate({ kind, title, body: toText(script), data: { template: templateId, script } })
+        } else {
+          await onCreate({ kind, title, body: template?.body ?? '', data: { template: templateId } })
+        }
       } else if (kind === 'file') {
         if (!file) throw new Error('Choose a file first.')
         setProgress(0)

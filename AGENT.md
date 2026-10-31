@@ -44,6 +44,17 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 4. Add a body renderer in `components/Block.tsx` and a creation branch in `NewBlockDialog.tsx`.
 5. Describe it in the `chat` function's `describe()` so the assistant can see it.
 
+## Structured scripts (Drama)
+
+- When `data.script` changes, always write `body: toText(script)` in the same patch. `ScriptBody` in `Block.tsx` does this; keep it that way.
+- To add a new script element type:
+  1. Add it to `ScriptElement` and `newElement()` in `script.ts`.
+  2. Handle it in `toText()` and `parseScript()`.
+  3. Add a row editor in `ScriptEditor.tsx`.
+  4. Add its rendering in `ScriptView.tsx`.
+  5. Style it with the `.se-*` (editor) and `.pg-*` (page) classes.
+- The page look (`.script-page`) uses its own paper and ink colours on purpose, in both themes.
+
 ## Gotchas
 
 - Edge functions run with `verify_jwt = false` (set in `supabase/config.toml`). The client sends the `sb_publishable_…` key, which isn't a JWT. Pass `--use-api` or keep the config file when you deploy.

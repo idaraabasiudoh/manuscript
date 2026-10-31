@@ -4,7 +4,10 @@ import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes, pad, wordCount } from '../lib/util'
 import { ArrowUp, Check, Close, Download, External, Grip, KindIcon, Pencil, Plus, Spark, Trash } from './Icons'
+import { isScript, parseScript, toText, type Script } from '../lib/script'
 import { PdfViewer } from './PdfViewer'
+import { ScriptEditor } from './ScriptEditor'
+import { ScriptView } from './ScriptView'
 import { TextEditor } from './TextEditor'
 
 type Props = {
@@ -125,12 +128,19 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
       </header>
 
       <div className="block-body">
-        {isTextKind(block.kind) &&
+        {block.kind === 'drama' && isScript(block.data.script) ? (
+          <ScriptBody block={block} script={block.data.script} editing={isEditing} onPatch={onPatch} onEdit={reading ? undefined : () => onEdit(true)} />
+        ) : (
+          isTextKind(block.kind) &&
           (isEditing ? (
-            <TextEditor kind={block.kind} value={block.body} onChange={(body) => onPatch({ body })} autoFocus />
+            <>
+              {block.kind === 'drama' && <ConvertBanner block={block} onPatch={onPatch} />}
+              <TextEditor kind={block.kind} value={block.body} onChange={(body) => onPatch({ body })} autoFocus />
+            </>
           ) : (
             <TextPreview block={block} onEdit={reading ? undefined : () => onEdit(true)} />
-          ))}
+          ))
+        )}
         {block.kind === 'file' && <FileBody block={block} reading={reading} onPatch={onPatch} />}
         {block.kind === 'link' && <LinkBody block={block} editing={isEditing} onPatch={onPatch} onDone={() => onEdit(false)} />}
         {block.kind === 'resources' && <ResourcesBody block={block} editing={isEditing} onPatch={onPatch} />}
@@ -151,7 +161,45 @@ function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
     ) : (
       <p className="muted">Nothing here yet.</p>
     )
-  return <div className={`md md-${block.kind}`} onDoubleClick={onEdit} dangerouslySetInnerHTML={{ __html: html }} />
+  const md = <div className={`md md-${block.kind}`} onDoubleClick={onEdit} dangerouslySetInnerHTML={{ __html: html }} />
+  return block.kind === 'drama' ? <div className="script-page">{md}</div> : md
+}
+
+// ---- Structured scripts (Drama) ---------------------------------------------------
+
+function ScriptBody({ block, script, editing, onPatch, onEdit }: { block: Block; script: Script; editing: boolean; onPatch: (p: BlockPatch) => void; onEdit?: () => void }) {
+  const save = (next: Script) => onPatch({ data: { ...block.data, script: next }, body: toText(next) })
+  if (!editing) return <ScriptView script={script} onEdit={onEdit} />
+  const original = typeof block.data.originalText === 'string' ? block.data.originalText : undefined
+  const revert =
+    original === undefined
+      ? undefined
+      : () => {
+          const data = { ...block.data }
+          delete data.script
+          delete data.originalText
+          onPatch({ data, body: original })
+        }
+  return <ScriptEditor script={script} onChange={save} onRevert={revert} />
+}
+
+/** Offered on plain-text drama blocks: turn the text into a structured, reusable script. */
+function ConvertBanner({ block, onPatch }: { block: Block; onPatch: (p: BlockPatch) => void }) {
+  const convert = () => {
+    const script = parseScript(block.body, block.title)
+    onPatch({ data: { ...block.data, script, originalText: block.body }, body: toText(script) })
+  }
+  return (
+    <div className="convert-banner">
+      <div>
+        <strong>Turn this into a structured script</strong>
+        <span>Title page, a reusable cast, and scenes, lines and notes as pieces you can move around. Your text is kept so you can switch back.</span>
+      </div>
+      <button type="button" className="btn primary" onClick={convert}>
+        Convert
+      </button>
+    </div>
+  )
 }
 
 // ---- Files --------------------------------------------------------------------
