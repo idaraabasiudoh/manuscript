@@ -358,19 +358,20 @@ export function ProjectPage() {
   // ---- Misc actions -----------------------------------------------------------
 
   /** Copies the link everywhere; on phones and tablets it also opens the OS share sheet. */
+  /** Phones and tablets open the OS share sheet (which has its own Copy); everywhere else copies the link. */
   const share = () => {
     const url = `${location.origin}/${id}`
-    // Everything starts synchronously inside the tap so iOS still treats it as user-initiated.
+    const touch = window.matchMedia('(pointer: coarse)').matches
+    if (touch && typeof navigator.share === 'function') {
+      navigator.share({ title: project?.title || 'Manuscript', url }).catch(() => {
+        /* dismissed */
+      })
+      return
+    }
+    // The fallback copy runs synchronously inside the click so browsers still treat it as user-initiated.
     const legacy = copyWithSelection(url)
     const copied = navigator.clipboard?.writeText(url).then(() => true, () => legacy) ?? Promise.resolve(legacy)
-    const touch = window.matchMedia('(pointer: coarse)').matches
-    const sharing = touch && typeof navigator.share === 'function'
-    if (sharing) {
-      navigator.share({ title: project?.title || 'Manuscript', url }).catch(() => {
-        /* dismissed or unsupported; the link is still copied */
-      })
-    }
-    copied.then((ok) => flash(ok || sharing ? 'Link copied' : url))
+    copied.then((ok) => flash(ok ? 'Link copied' : url))
   }
 
   const askAbout = (block: Block) => {
