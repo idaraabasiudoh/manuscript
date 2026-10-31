@@ -99,14 +99,13 @@ export const ManuSpark = ({ size = 18 }: { size?: number }) => {
   )
 }
 
+/** The "m." mark: black glyph on light themes, white glyph on dark themes. */
 export const Logo = () => (
   <span className="logo">
-    <span className="logo-mark" aria-hidden>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-        <path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4" />
-        <path d="M8.5 9h7M8.5 12h7M8.5 15h4" strokeWidth="1.8" />
-      </svg>
-    </span>
+    <picture className="logo-mark">
+      <source srcSet="/icons/white-icon.png" media="(prefers-color-scheme: dark)" />
+      <img src="/icons/black-icon.png" alt="" width={46} height={46} />
+    </picture>
     <span className="logo-word">manuscript</span>
   </span>
 )
