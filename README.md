@@ -1,5 +1,7 @@
 # Manuscript
 
+**Live:** https://manuscript-studios.vercel.app
+
 A shared, link-based notebook for video and short-film ideas. Go to `/<name>` (e.g. `/the-last-train`). The project is created on your first visit, and anyone with the link can read and edit it. There are no accounts.
 
 A project is a single page made of **named blocks**. You drag blocks in from the sidebar and drag them up or down to reorder.
