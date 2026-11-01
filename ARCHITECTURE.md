@@ -116,6 +116,8 @@ Edge functions run with `verify_jwt = false`, but `chat` and `delete` build a cl
 
 **Assistant.** The client sends `{ project, messages (last 16), focus }` to `chat`. The function loads the project's title and blocks with the service role and builds a system prompt. That prompt holds the project content (capped at about 60k characters), notes which block the writer is focused on, and lists the formatting the editor understands. The function calls the model set in the `MANU_AI_MODEL` secret, using the `MANU_AI_KEY` secret, with streaming on. It turns the streamed text into a plain-text stream for the browser and skips thought parts. Errors from the provider are logged on the server, and the browser only gets a generic message. The system prompt tells the assistant to present itself only as Manu AI and never name the model or company behind it. Chat history is saved per browser in `localStorage`.
 
+**Link previews.** Chat apps' crawlers don't run JS, so `vercel.json` sends requests for `/:id` (and `/:id/:block`) whose user-agent looks like a preview crawler to `api/page.ts`. It returns `index.html` with that project's `og:`/`twitter:` tags, filled from the `project_card` RPC (title, block and word counts, update time; any project, no contents). The image is `api/og.ts` (`@vercel/og`, Geist from `api/fonts/`), with the update time in its URL so apps refetch after edits. People always get the static app; other pages use `public/og.png`.
+
 ## Frontend layout
 
 ```

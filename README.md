@@ -82,6 +82,7 @@ The app is a static build (`npm run build` → `dist/`). `vercel.json` rewrites 
 
 - **Sharing needs an account.** You can only add people who have already signed up. There are no email invites, so nobody can claim an invite with an address they don't own.
 - **No email confirmation or password reset.** Sign-up creates a confirmed account straight away (via the `signup` function) to avoid email rate limits. A forgotten password has to be reset from the Supabase dashboard.
+- **Link previews show the project's name.** Any project link, private ones included, previews as a card with its title, block and word counts, and last update (never its contents). Other links show the homepage card.
 - **Legacy projects.** Projects created before accounts existed have no owner and stay open to anyone with the link ("edit") until they're assigned to an account with SQL.
 - **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, M4A, WAV, OGG, audio WebM, PNG, JPEG, GIF and WebP. Recordings are WebM/Opus in Chrome, Firefox and Edge, and M4A in Safari.
 - **Inline voice notes.** Deleting the line from a text block removes the player but keeps the file until the block or project is deleted.
