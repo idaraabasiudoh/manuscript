@@ -22,6 +22,7 @@ export function HomePage() {
 
   return (
     <div className="home">
+      <div className="mobile-footer" aria-hidden />
       <header className="home-top">
         <Logo />
         <div className="home-top-end">

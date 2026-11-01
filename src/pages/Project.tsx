@@ -547,6 +547,8 @@ export function ProjectPage() {
       <div className="sidebar-scrim" onClick={() => setSidebarOpen(false)} />
 
       <div className="main">
+        {/* Phones: the header floats over the page and this fade covers the bottom edge, so content gets the full height */}
+        <div className="mobile-footer" aria-hidden />
         <header className="toolbar">
           {fullBlock || (blockId && project) ? (
             <>
