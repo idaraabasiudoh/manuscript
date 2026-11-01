@@ -49,6 +49,8 @@ export function VoiceRecorder({ onUse, onCancel, useLabel = 'Use voice note', bu
     stream.current = null
     ctx.current?.close().catch(() => {})
     ctx.current = null
+    // Hand the device back to normal playback, so listening to the take works on the first tap (Safari).
+    setAudioSession('auto')
   }
 
   useEffect(
@@ -71,6 +73,7 @@ export function VoiceRecorder({ onUse, onCancel, useLabel = 'Use voice note', bu
       return
     }
     setState('asking')
+    setAudioSession('play-and-record')
     try {
       const media = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
       stream.current = media
@@ -228,4 +231,10 @@ export function VoiceRecorder({ onUse, onCancel, useLabel = 'Use voice note', bu
       </div>
     </div>
   )
+}
+
+/** Safari 16.4+ exposes the audio session type; elsewhere this is a no-op. */
+function setAudioSession(type: 'auto' | 'play-and-record') {
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession
+  if (session) session.type = type
 }

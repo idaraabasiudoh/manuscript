@@ -63,18 +63,44 @@ export function AudioPlayer({ src, name, peaks, duration: stored, variant = 'car
     }
   }
 
-  const toggle = async () => {
+  /**
+   * Starts playback, and makes sure it really started. Right after recording (iOS especially),
+   * or when the browser skipped preloading, the first play() can resolve without any sound or
+   * progress, so the player reloads and tries once more instead of waiting for a second tap.
+   */
+  const start = async (retry: boolean) => {
     const el = audio.current
     if (!el) return
-    if (el.paused) {
-      claimPlayback(el)
-      el.playbackRate = speed
-      try {
-        await el.play()
-      } catch {
-        setFailed(true)
+    claimPlayback(el)
+    el.playbackRate = speed
+    if (el.readyState === HTMLMediaElement.HAVE_NOTHING) el.load()
+    const from = el.currentTime
+    try {
+      await el.play()
+    } catch (e) {
+      const name = e instanceof DOMException ? e.name : ''
+      if (name === 'NotSupportedError') return setFailed(true)
+      // AbortError / NotAllowedError: the attempt was interrupted; one quiet retry, then leave it to the next tap.
+      if (retry) setTimeout(() => start(false), 150)
+      return
+    }
+    if (!retry) return
+    setTimeout(() => {
+      // Still "playing" but the playhead hasn't moved: the start stalled, so reload and go again.
+      if (!el.paused && el.currentTime === from) {
+        el.pause()
+        el.load()
+        el.currentTime = from
+        start(false)
       }
-    } else el.pause()
+    }, 1000)
+  }
+
+  const toggle = () => {
+    const el = audio.current
+    if (!el) return
+    if (el.paused) start(true)
+    else el.pause()
   }
 
   const total = length && Number.isFinite(length) ? length : 0
@@ -116,7 +142,8 @@ export function AudioPlayer({ src, name, peaks, duration: stored, variant = 'car
       <audio
         ref={audio}
         src={src}
-        preload="metadata"
+        // Local takes (blob:) are cheap to load fully, so they're ready the moment play is pressed.
+        preload={src.startsWith('blob:') ? 'auto' : 'metadata'}
         onLoadedMetadata={onMeta}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
