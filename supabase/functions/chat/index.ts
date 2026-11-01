@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: req.headers.get('Authorization') ?? `Bearer ${anon}` } },
     })
     const { data: role } = await caller.rpc('project_role', { p_id: project })
-    if (!role) return json({ error: 'You don’t have access to this project' }, 403)
+    if (role !== 'owner' && role !== 'editor') return json({ error: 'Manu AI is only available to people who can edit this project' }, 403)
 
     const [{ data: proj }, { data: blocks }] = await Promise.all([
       admin.from('projects').select('title').eq('id', project).maybeSingle(),

@@ -89,7 +89,7 @@ The Supabase security advisor flags these as "anon can execute SECURITY DEFINER"
 
 Storage: owners and editors can **insert** into `project-files` (policy `editors can upload project files` calls `project_role` on the first path segment). Nobody can update, overwrite (`x-upsert: false`) or delete from the client. Reads go through the public URL, so file URLs are unguessable but not access-checked. The bucket enforces a 50 MB cap and a MIME allowlist.
 
-Edge functions run with `verify_jwt = false`, but `chat` and `delete` build a client from the anon key plus the caller's `Authorization` header and call `project_role`: chat needs any role, deleting a block needs editor, deleting a project needs owner.
+Edge functions run with `verify_jwt = false`, but `chat` and `delete` build a client from the anon key plus the caller's `Authorization` header and call `project_role`: chat needs editor (viewers never see Manu AI), deleting a block needs editor, deleting a project needs owner.
 
 ## Request flows
 
@@ -97,7 +97,7 @@ Edge functions run with `verify_jwt = false`, but `chat` and `delete` build a cl
 
 **Opening `/the-last-train`.** After auth is ready, `open_project` returns everything in one round trip, or a status the page turns into `AccessScreen` (no access, sign in to create, reserved name). The page reloads when the signed-in user changes. The client then subscribes to `project:the-last-train` for broadcast and presence. When the owner changes sharing, a broadcast makes other clients refetch; anyone who just lost access gets the no-access screen.
 
-**Viewers.** `viewMode = reading || role is viewer`. It hides the palette, editing, drag-and-drop, Delete and Manu AI's "Add to page", and swaps the Read/Edit toggle for a View only badge. The server enforces the same rules.
+**Viewers.** `viewMode = reading || role is viewer`. It hides the palette, editing, drag-and-drop, Delete and Manu AI (the panel, its button and ⌘J), and swaps the Read/Edit toggle for a View only badge. The server enforces the same rules.
 
 **Block links.** `/:id/:blockId?` is a single route, so opening a block full screen and returning keeps the page's state and any unsaved edits. `blockId` is the first 8 characters of the block's UUID (`blockSlug()`), matched by prefix within the project. In full-screen mode the same `BlockView` renders alone, with the sidebar and drag-and-drop off. The toolbar swaps in a Return button, and Share uses the block's URL.
 

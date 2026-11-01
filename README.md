@@ -23,7 +23,7 @@ A project is a single page made of **named blocks**. You drag blocks in from the
   - **Add people** by username or email as **Can edit** or **Can view**. They need an account first. Change or remove anyone later.
   - **General access:** *Only people added* (default), *Anyone with the link can view*, or *Anyone with the link can edit*.
   - **Copy link** copies the address (on phones, Share opens the share sheet).
-  Someone without access sees a "You don't have access" screen with a sign-in form. Viewers get read mode only: a **View only** badge replaces the Read/Edit toggle, and there is no palette, editing or delete. Only the owner can share or delete a project.
+  Someone without access sees a "You don't have access" screen with a sign-in form. Viewers get read mode only: a **View only** badge replaces the Read/Edit toggle, and there is no palette, editing, delete or Manu AI. Only the owner can share or delete a project.
 
 - **Writer-friendly formatting.** Labelled buttons (Title / Heading / Subheading / Body, **B** *I* <u>U</u> ~~S~~, quote, lists, center, divider, link) plus buttons specific to each kind: *Scene, Character, (beat), CUT TO:* for drama, *Indent / Stanza* for poetry, *Chapter / Scene break* for prose. Every button has a plain-English tooltip, and a **?** guide explains the rest. Writers never need to know markdown.
 - **Live preview.** The editor shows the formatted result side by side with the text on wide screens, and as Write/Preview tabs on narrow ones.
@@ -82,4 +82,4 @@ The app is a static build (`npm run build` → `dist/`). `vercel.json` rewrites 
 - **Legacy projects.** Projects created before accounts existed have no owner and stay open to anyone with the link ("edit") until they're assigned to an account with SQL.
 - **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, PNG, JPEG, GIF and WebP.
 - **Edit conflicts.** Saves are last-write-wins per block. While you're editing a block, incoming changes to that block are held back so your text doesn't jump.
-- **AI cost.** Manu AI runs on your API key. Anyone who can open a project (including through an open link) can use it.
+- **AI cost.** Manu AI runs on your API key. Only people who can edit a project (including through an "anyone can edit" link) can use it.

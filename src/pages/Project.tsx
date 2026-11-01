@@ -777,7 +777,7 @@ export function ProjectPage() {
 
       </div>
 
-      {project && (
+      {project && canEdit && (
         <Chat
           project={id}
           projectTitle={project.title}
@@ -787,7 +787,7 @@ export function ProjectPage() {
           draft={chatDraft}
           onOpenChange={setChatOpen}
           onFocus={setFocusId}
-          onInsert={canEdit ? insertFromChat : undefined}
+          onInsert={insertFromChat}
         />
       )}
 
