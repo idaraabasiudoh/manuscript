@@ -37,7 +37,8 @@ type Props = {
   draft: { text: string; at: number } | null
   onOpenChange: (open: boolean) => void
   onFocus: (id: string | undefined) => void
-  onInsert: (text: string) => Promise<void>
+  /** Absent for viewers: they can ask, but not add to the page. */
+  onInsert?: (text: string) => Promise<void>
 }
 
 type Suggestion = { icon: LucideIcon; title: string; prompt: string }
@@ -334,7 +335,7 @@ function Rendered({ text, streaming }: { text: string; streaming?: boolean }) {
   return <div className={`md md-chat ${streaming ? 'streaming' : ''}`} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; onInsert: (text: string) => Promise<void>; onRegenerate?: () => void }) {
+function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; onInsert?: (text: string) => Promise<void>; onRegenerate?: () => void }) {
   const [copied, setCopied] = useState(false)
   const [added, setAdded] = useState<'idle' | 'adding' | 'added'>('idle')
   const copy = async () => {
@@ -357,6 +358,7 @@ function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; on
     )
 
   const insert = async () => {
+    if (!onInsert) return
     setAdded('adding')
     try {
       await onInsert(message.content)
@@ -374,7 +376,7 @@ function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; on
         <Rendered text={message.content} />
         <div className="msg-actions">
           {copyButton}
-          <button
+          {onInsert && <button
             className="chat-icon sm"
             onClick={insert}
             disabled={added !== 'idle'}
@@ -382,7 +384,7 @@ function Message({ message, onInsert, onRegenerate }: { message: ChatMessage; on
             aria-label="Add to page as a block"
           >
             {added === 'added' ? <Check size={16} strokeWidth={2} /> : <FilePlus2 size={16} strokeWidth={1.75} />}
-          </button>
+          </button>}
           {onRegenerate && (
             <button className="chat-icon sm" onClick={onRegenerate} data-tip="Try again" aria-label="Write a different answer">
               <RotateCcw size={16} strokeWidth={1.75} />

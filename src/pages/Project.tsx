@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Lock, Settings } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlockView } from '../components/Block'
 import { Chat } from '../components/Chat'
 import { Close, Eye, KindIcon, Logo, Menu, Pencil, Plus, Share, Trash, ThemeToggle } from '../components/Icons'
 import { NewBlockDialog, type NewBlock } from '../components/NewBlockDialog'
+import { AuthCard } from '../components/AuthCard'
+import { ShareDialog } from '../components/ShareDialog'
+import { useAuth } from '../lib/auth'
 import { DEFAULT_VIEW, MIN_WIDTH, ZoomControl, type FullView } from '../components/ZoomControl'
 import {
   addBlock,
@@ -39,7 +42,10 @@ export function ProjectPage() {
   const navigate = useNavigate()
 
   const [project, setProject] = useState<Project | null>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'invalid' | 'deleted' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'invalid' | 'deleted' | 'error' | 'denied' | 'sign-in' | 'reserved'>('loading')
+  const { ready: authReady, session, profile } = useAuth()
+  const uid = session?.user.id ?? null
+  const [shareOpen, setShareOpen] = useState(false)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Set<string>>(new Set())
   const [reading, setReading] = useState(false)
@@ -97,17 +103,22 @@ export function ProjectPage() {
       setStatus('invalid')
       return
     }
+    if (!authReady) return
     let cancelled = false
     setStatus('loading')
     setProject(null)
     setEditing(new Set())
     openProject(id)
-      .then((p) => {
+      .then((r) => {
         if (cancelled) return
+        if (r.status === 'denied') return setStatus('denied')
+        if (r.status === 'sign-in-to-create') return setStatus('sign-in')
+        if (r.status === 'reserved') return setStatus('reserved')
+        const { status: _s, isNew, ...p } = r
         setProject(p)
         setStatus('ready')
         rememberProject(id)
-        if (p.isNew) flash('New project created — share the link to write together')
+        if (isNew) flash('Project created. It’s private until you share it.')
       })
       .catch((e) => {
         if (cancelled) return
@@ -117,13 +128,17 @@ export function ProjectPage() {
     return () => {
       cancelled = true
     }
-  }, [id, flash])
+  }, [id, flash, authReady, uid])
 
   const refresh = useCallback(async () => {
     const remote = await getProject(id).catch(() => undefined)
     if (remote === undefined) return
     if (remote === null) {
       setStatus('deleted')
+      return
+    }
+    if (remote.status === 'denied') {
+      setStatus('denied')
       return
     }
     setProject((cur) => {
@@ -133,9 +148,10 @@ export function ProjectPage() {
         const local = cur.blocks.find((b) => b.id === rb.id)
         return local && keep(local) ? local : rb
       })
+      const { status: _s, ...fresh } = remote
       return {
-        ...remote,
-        title: dirty.current.has(TITLE_KEY) ? cur.title : remote.title,
+        ...fresh,
+        title: dirty.current.has(TITLE_KEY) ? cur.title : fresh.title,
         blocks: merged.sort((a, b) => a.position - b.position),
       }
     })
@@ -342,7 +358,7 @@ export function ProjectPage() {
   }
 
   const onDragOver = (e: DragEvent) => {
-    if (reading || fullBlock) return
+    if (reading || fullBlock || projectRef.current?.role === 'viewer') return
     const kind = dragKind(e)
     if (!kind) return
     e.preventDefault()
@@ -358,7 +374,7 @@ export function ProjectPage() {
   const onDrop = (e: DragEvent) => {
     const kind = dragKind(e)
     setDrop(null)
-    if (!kind || reading || fullBlock) return
+    if (!kind || reading || fullBlock || projectRef.current?.role === 'viewer') return
     e.preventDefault()
     const index = dropIndex(e)
     if (kind === 'palette') {
@@ -405,6 +421,9 @@ export function ProjectPage() {
 
   /** Phones and tablets open the OS share sheet (which has its own Copy); everywhere else copies the link.
    *  In full screen it shares that block's own link. */
+  const shareUrl = () => `${location.origin}/${id}${fullBlock ? `/${blockSlug(fullBlock.id)}` : ''}`
+  const onShareClick = () => (project?.role === 'owner' ? setShareOpen(true) : share())
+
   const share = () => {
     const url = `${location.origin}/${id}${fullBlock ? `/${blockSlug(fullBlock.id)}` : ''}`
     const touch = window.matchMedia('(pointer: coarse)').matches
@@ -452,6 +471,15 @@ export function ProjectPage() {
       </Message>
     )
 
+  if (status === 'denied' || status === 'sign-in' || status === 'reserved') {
+    return <AccessScreen status={status} id={id} signedIn={!!session} username={profile?.username ?? null} />
+  }
+
+  const canEdit = project?.role === 'owner' || project?.role === 'editor'
+  const isOwner = project?.role === 'owner'
+  /** Viewers are always in read mode. */
+  const viewMode = reading || (!!project && !canEdit)
+
   const totalWords = blocks.reduce((n, b) => n + (isTextKind(b.kind) ? wordCount(b.body) : 0), 0)
   const focused = blocks.find((b) => b.id === focusId)
   const saveLabel = saving > 0 ? 'Saving…' : dirtyCount > 0 ? 'Editing' : 'Saved'
@@ -464,7 +492,7 @@ export function ProjectPage() {
     )
 
   return (
-    <div className={`workspace ${sidebarOpen ? 'sidebar-open' : ''} ${reading ? 'reading' : ''} ${fullBlock ? 'fullscreen' : ''}`}>
+    <div className={`workspace ${sidebarOpen ? 'sidebar-open' : ''} ${viewMode ? 'reading' : ''} ${fullBlock ? 'fullscreen' : ''}`}>
       <aside className="sidebar">
         <div className="sidebar-inner">
           <div className="sidebar-top">
@@ -479,7 +507,7 @@ export function ProjectPage() {
             </div>
           </div>
 
-          {!reading && (
+          {!viewMode && (
             <section className="palette">
               <h3 className="mono-label">Blocks</h3>
               <p className="palette-hint">Drag onto the page, or click to add at the end.</p>
@@ -537,9 +565,27 @@ export function ProjectPage() {
                 <dt>Updated</dt>
                 <dd>{timeAgo(project.updated)}</dd>
               </dl>
-              <button className="btn eject" onClick={() => setConfirmDelete(true)}>
-                <Trash width={14} height={14} /> Delete project
-              </button>
+              {!project.claimed && (
+                <p className="sidebar-note">
+                  <Lock size={13} /> Made before accounts existed, so anyone with the link can edit it until it’s assigned to an owner.
+                </p>
+              )}
+              {isOwner && (
+                <button className="btn eject" onClick={() => setConfirmDelete(true)}>
+                  <Trash width={14} height={14} /> Delete project
+                </button>
+              )}
+              <Link to="/settings" className="sidebar-account" onClick={() => setSidebarOpen(false)}>
+                {session && profile?.username ? (
+                  <>
+                    <span className="account-avatar">{profile.username[0]}</span>
+                    <span className="sidebar-account-name truncate">@{profile.username}</span>
+                  </>
+                ) : (
+                  <span className="sidebar-account-name">Sign in</span>
+                )}
+                <Settings size={16} className="sidebar-account-icon" />
+              </Link>
             </footer>
           )}
         </div>
@@ -580,15 +626,21 @@ export function ProjectPage() {
               <ThemeToggle />
             </>
           )}
-          <div className="segmented" role="group" aria-label="Mode">
-            <button className={reading ? 'on' : ''} onClick={() => setReading(true)} title="Reader mode — hide editing tools">
-              <Eye width={14} height={14} /> <span className="hide-sm">Read</span>
-            </button>
-            <button className={!reading ? 'on' : ''} onClick={() => setReading(false)} title="Edit mode">
-              <Pencil width={14} height={14} /> <span className="hide-sm">Edit</span>
-            </button>
-          </div>
-          <button className="btn primary" onClick={share}>
+          {project && !canEdit ? (
+            <span className="view-only" title="You can view this project but not change it">
+              <Eye width={14} height={14} /> <span className="hide-sm">View only</span>
+            </span>
+          ) : (
+            <div className="segmented" role="group" aria-label="Mode">
+              <button className={reading ? 'on' : ''} onClick={() => setReading(true)} title="Reader mode — hide editing tools">
+                <Eye width={14} height={14} /> <span className="hide-sm">Read</span>
+              </button>
+              <button className={!reading ? 'on' : ''} onClick={() => setReading(false)} title="Edit mode">
+                <Pencil width={14} height={14} /> <span className="hide-sm">Edit</span>
+              </button>
+            </div>
+          )}
+          <button className="btn primary" onClick={onShareClick}>
             <Share width={15} height={15} /> <span className="hide-sm">Share</span>
           </button>
         </header>
@@ -619,7 +671,7 @@ export function ProjectPage() {
                   block={fullBlock}
                   index={blocks.indexOf(fullBlock)}
                   editing={editing.has(fullBlock.id)}
-                  reading={reading}
+                  reading={viewMode}
                   onEdit={(on) => setBlockEditing(fullBlock.id, on)}
                   onPatch={(patch) => patchBlock(fullBlock.id, patch)}
                   onDelete={async () => {
@@ -649,7 +701,7 @@ export function ProjectPage() {
           ) : (
             <div className="doc">
               <header className="doc-head">
-                {reading ? (
+                {viewMode ? (
                   <h1 className="doc-title static">{project.title || 'Untitled project'}</h1>
                 ) : (
                   <input
@@ -674,7 +726,7 @@ export function ProjectPage() {
                     block={block}
                     index={i}
                     editing={editing.has(block.id)}
-                    reading={reading}
+                    reading={viewMode}
                     onEdit={(on) => setBlockEditing(block.id, on)}
                     onPatch={(patch) => patchBlock(block.id, patch)}
                     onDelete={() => removeBlock(block)}
@@ -692,7 +744,7 @@ export function ProjectPage() {
                 {dragId && <style>{`#block-${dragId}{opacity:.35}`}</style>}
               </div>
 
-              {blocks.length === 0 && !reading && (
+              {blocks.length === 0 && !viewMode && (
                 <div className="doc-empty">
                   <p className="mono-label">Empty page</p>
                   <strong>What are you making?</strong>
@@ -709,7 +761,7 @@ export function ProjectPage() {
                 </div>
               )}
 
-              {blocks.length > 0 && !reading && (
+              {blocks.length > 0 && !viewMode && (
                 <div className="add-row">
                   <span className="mono-label">Add</span>
                   {PALETTE.map((k) => (
@@ -735,11 +787,22 @@ export function ProjectPage() {
           draft={chatDraft}
           onOpenChange={setChatOpen}
           onFocus={setFocusId}
-          onInsert={insertFromChat}
+          onInsert={canEdit ? insertFromChat : undefined}
         />
       )}
 
       {adding && <NewBlockDialog project={id} kind={adding.kind} onCreate={(nb) => createBlock(nb, adding.position)} onClose={() => setAdding(null)} />}
+
+      {shareOpen && project && (
+        <ShareDialog
+          project={id}
+          title={project.title || id}
+          url={shareUrl()}
+          onClose={() => setShareOpen(false)}
+          onChanged={(access) => (setProject((p) => p && { ...p, access }), notify())}
+          onCopy={share}
+        />
+      )}
 
       {confirmDelete && <DeleteDialog id={id} onClose={() => setConfirmDelete(false)} onDeleted={() => (forgetProject(id), notify(), navigate('/'))} />}
 
@@ -839,4 +902,45 @@ function copyWithSelection(text: string) {
   }
   el.remove()
   return ok
+}
+
+/** Same URL, no project: not allowed in, needs to sign in to create, or a reserved name. */
+function AccessScreen({ status, id, signedIn, username }: { status: 'denied' | 'sign-in' | 'reserved'; id: string; signedIn: boolean; username: string | null }) {
+  useEffect(() => {
+    document.title = 'Manuscript'
+  }, [])
+  if (status === 'reserved')
+    return (
+      <Message title="That name is reserved" body={`“${id}” is used by Manuscript itself. Pick a different project name.`}>
+        <Link className="btn primary" to="/">Back home</Link>
+      </Message>
+    )
+  if (status === 'sign-in')
+    return (
+      <div className="full-message access-screen">
+        <Logo />
+        <AuthCard title={`Create “${id}”`} subtitle="Sign in or create an account to start this project. It stays private until you share it." initialMode="signup" />
+        <Link className="btn" to="/">Back home</Link>
+      </div>
+    )
+  return (
+    <div className="full-message access-screen">
+      <Logo />
+      <div className="access-lock" aria-hidden>
+        <Lock size={26} />
+      </div>
+      <h2>You don’t have access</h2>
+      <p>
+        {signedIn
+          ? `You’re signed in as @${username ?? 'you'}, but the owner of “${id}” hasn’t shared it with you. Ask them to add your username or email.`
+          : `“${id}” is private. If it was shared with you, sign in to open it.`}
+      </p>
+      {signedIn ? (
+        <p className="muted access-note">If you were trying to create a new project, this name is already taken.</p>
+      ) : (
+        <AuthCard />
+      )}
+      <Link className="btn" to="/">Back home</Link>
+    </div>
+  )
 }

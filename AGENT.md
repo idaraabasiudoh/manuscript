@@ -4,7 +4,7 @@ Guidance for AI coding agents (and humans) working on Manuscript. Read [ARCHITEC
 
 ## Project in one paragraph
 
-Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`) is an ordered list of named blocks: poetry, drama, prose, notes, file, link and resources. The frontend is a Vite + React 19 SPA on Vercel. The backend is Supabase: Postgres through RPCs only, Storage for uploads, Realtime for live sync, and Edge Functions for AI chat, link unfurling and deletes. The whole UI uses one design language, taken from the Manu AI panel: soft tinted surfaces, rounded pill controls, cards, and a blue → violet → rose gradient as the only accent colour.
+Manuscript is a shared notebook for film ideas with email/password accounts, usernames and per-project sharing (owner, editors, viewers, plus optional view/edit for anyone with the link). A project (`/:id`) is an ordered list of named blocks: poetry, drama, prose, notes, file, link and resources. The frontend is a Vite + React 19 SPA on Vercel. The backend is Supabase: Postgres through RPCs only, Storage for uploads, Realtime for live sync, Auth for accounts, and Edge Functions for sign-up, AI chat, link unfurling and deletes. The whole UI uses one design language, taken from the Manu AI panel: soft tinted surfaces, rounded pill controls, cards, and a blue → violet → rose gradient as the only accent colour.
 
 ## Commands
 
@@ -17,15 +17,15 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 
 ## Rules
 
-1. **Database access is RPC-only.** Never add RLS policies or table grants for `anon`. To add a capability, write a new `security definer` function with `set search_path = ''`. Fully qualify every name (`public.blocks`), validate the inputs, and `grant execute` to `anon, authenticated` explicitly. Add a matching wrapper in `src/lib/supabase.ts`.
+1. **Database access is RPC-only.** Never add RLS policies or table grants for `anon`. To add a capability, write a new `security definer` function with `set search_path = ''`. Fully qualify every name (`public.blocks`), validate the inputs, and `grant execute` to `anon, authenticated` explicitly. Add a matching wrapper in `src/lib/supabase.ts`. Every function that reads or changes a project must call `public.require_role(p_id, 'viewer' | 'editor' | 'owner')` first; sharing is owner-only.
 2. **Migrations are append-only.** Add a new timestamped file in `supabase/migrations/`. Never edit one that has already been applied.
 3. **Anything that deletes Storage objects goes through the `delete` edge function.** The anon role can only insert into the bucket. If you add a new kind of block that owns files, keep its Storage key in `data.path` under `<project_id>/`, and make sure the `delete` function removes it.
 4. **User text must stay safe.** `renderMarkdown` escapes HTML before applying any formatting, and its output is the only content passed to `dangerouslySetInnerHTML`. Keep it that way. Links only allow `http:`, `https:` and `mailto:`.
 5. **Writers aren't technical.** Never expose markdown syntax as the main way to format. New formatting needs a labelled toolbar button with a plain-English `help` string in `TextEditor.tsx`, an entry in the `Guide`, and support in `markdown.ts`. Update the formatting list in the `chat` function's system prompt too.
 6. **Saves are optimistic and debounced.** Change blocks through `patchBlock` / `queue` in `Project.tsx`. Don't call `updateBlock` directly from components. After any mutation, call `notify()` so other viewers refetch.
 7. **Ordering uses fractional `position`.** Use `between()` from `util.ts`. Don't renumber rows.
-
-8. **Manu AI never names its provider.** Don't put model, company or provider names anywhere a user can see them: UI text, error messages or the docs. The model is set only by the `MANU_AI_MODEL` secret, and provider errors stay in the server logs.
+8. **Permissions are enforced on the server.** Hiding a button for viewers (`viewMode`, `canEdit`, `isOwner` in `Project.tsx`) is only UX. Edge functions that touch a project check `project_role` with the caller's token, and the Storage insert policy does the same. Members must already have an account; don't add email invites without verifying ownership of the address.
+9. **Manu AI never names its provider.** Don't put model, company or provider names anywhere a user can see them: UI text, error messages or the docs. The model is set only by the `MANU_AI_MODEL` secret, and provider errors stay in the server logs.
 
 ## Style
 
@@ -60,7 +60,9 @@ Manuscript is a link-shared, no-auth notebook for film ideas. A project (`/:id`)
 
 ## Gotchas
 
-- Edge functions run with `verify_jwt = false` (set in `supabase/config.toml`). The client sends the `sb_publishable_…` key, which isn't a JWT. Pass `--use-api` or keep the config file when you deploy.
+- Edge functions run with `verify_jwt = false` (set in `supabase/config.toml`). Signed-out clients send the `sb_publishable_…` key, which isn't a JWT; signed-in clients send their access token (`bearer()` in `supabase.ts`). Pass `--use-api` or keep the config file when you deploy.
+- `/settings`, `/login` and a few other names are reserved in `open_project` so they can't become projects. Add a name there before adding a new top-level route.
+- Test with throwaway accounts on `@manuscript.test` addresses and delete them afterwards (`delete from auth.users where email like 'qa-%@manuscript.test'`).
 - The free plan caps uploads at 50 MB. The bucket enforces the same limit, so raise both together.
 - Under StrictMode, effects and state updaters run twice in dev. Never put side effects inside a `setState` updater.
 - pdf.js is dynamically imported, so the worker ends up in its own chunk. Keep it out of the main bundle.

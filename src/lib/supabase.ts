@@ -8,8 +8,14 @@ export const BUCKET = 'project-files'
 export const MAX_UPLOAD = 50 * 1024 * 1024
 
 export const supabase = createClient(SUPABASE_URL || 'http://localhost', SUPABASE_KEY || 'missing', {
-  auth: { persistSession: false },
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'manuscript-auth', detectSessionInUrl: false },
 })
+
+/** Bearer token for our own fetches: the signed-in user's access token, or the public key for visitors. */
+async function bearer() {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? SUPABASE_KEY
+}
 
 // ---- Types --------------------------------------------------------------------
 
@@ -34,13 +40,44 @@ export type Block = {
   updated: string
 }
 
+export type Role = 'owner' | 'editor' | 'viewer'
+export type Access = 'restricted' | 'view' | 'edit'
+
 export type Project = {
   id: string
   title: string
   created: string
   updated: string
+  access: Access
+  ownerName: string | null
+  /** False for projects made before accounts existed (open to everyone until claimed). */
+  claimed: boolean
+  role: Role
   blocks: Block[]
 }
+
+/** What opening a project URL can lead to. */
+export type OpenResult =
+  | ({ status: 'ok'; isNew: boolean } & Project)
+  | { status: 'denied'; signedIn: boolean }
+  | { status: 'sign-in-to-create' }
+  | { status: 'reserved' }
+
+export type Profile = { id: string; username: string | null; email: string }
+
+export type ProjectSummary = {
+  id: string
+  title: string
+  updated: string
+  access: Access
+  role: Role
+  ownerName: string | null
+  opened: string | null
+  blocks: number
+}
+
+export type Member = { userId: string; username: string | null; email: string; role: Exclude<Role, 'owner'> }
+export type Sharing = { access: Access; owner: { username: string | null; email: string }; members: Member[] }
 
 export type BlockPatch = Partial<Pick<Block, 'title' | 'body' | 'data' | 'position'>>
 
@@ -54,8 +91,9 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return data as T
 }
 
-export const openProject = (id: string) => rpc<Project & { isNew: boolean }>('open_project', { p_id: id })
-export const getProject = (id: string) => rpc<Project | null>('get_project', { p_id: id })
+export const openProject = (id: string) => rpc<OpenResult>('open_project', { p_id: id })
+export const getProject = (id: string) =>
+  rpc<({ status: 'ok' } & Project) | { status: 'denied'; signedIn: boolean } | null>('get_project', { p_id: id })
 export const renameProject = (id: string, title: string) => rpc<void>('rename_project', { p_id: id, p_title: title })
 
 export const addBlock = (project: string, b: Pick<Block, 'kind' | 'title' | 'body' | 'data' | 'position'>) =>
@@ -70,12 +108,40 @@ export const addBlock = (project: string, b: Pick<Block, 'kind' | 'title' | 'bod
 
 export const updateBlock = (id: string, patch: BlockPatch) => rpc<Block>('update_block', { p_id: id, p_patch: patch })
 
+// ---- Accounts & sharing --------------------------------------------------------
+
+export const getMyProfile = () => rpc<Profile | null>('get_my_profile', {})
+export const setUsername = (username: string) => rpc<Profile>('set_username', { p_username: username })
+export const listMyProjects = () => rpc<ProjectSummary[]>('list_my_projects', {})
+
+export const getSharing = (id: string) => rpc<Sharing>('get_sharing', { p_id: id })
+export const setProjectAccess = (id: string, access: Access) => rpc<void>('set_project_access', { p_id: id, p_access: access })
+export const shareProject = (id: string, identifier: string, role: Member['role']) =>
+  rpc<Member>('share_project', { p_id: id, p_identifier: identifier, p_role: role })
+export const setMemberRole = (id: string, userId: string, role: Member['role']) =>
+  rpc<void>('set_member_role', { p_id: id, p_user: userId, p_role: role })
+export const removeMember = (id: string, userId: string) => rpc<void>('remove_member', { p_id: id, p_user: userId })
+
+/** Email + password sign-up: the account is created ready to use, then we sign in. */
+export async function signUp(email: string, password: string) {
+  await invoke('signup', { email, password })
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw new Error(error.message)
+}
+
+export async function signIn(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+  if (error) throw new Error(/invalid/i.test(error.message) ? 'Wrong email or password' : error.message)
+}
+
+export const signOut = () => supabase.auth.signOut()
+
 // ---- Edge functions -----------------------------------------------------------
 
 async function invoke<T>(name: string, body: unknown): Promise<T> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
     method: 'POST',
-    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await bearer()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   const data = await res.json().catch(() => ({}))
@@ -105,7 +171,7 @@ export async function chat(
 ) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
     method: 'POST',
-    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await bearer()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ project, messages, focus }),
     signal,
   })
@@ -157,7 +223,12 @@ export function mimeFor(file: File): string | null {
 }
 
 /** Uploads with XHR so we get progress events (supabase-js doesn't expose them). */
-export function uploadFile(project: string, file: File, onProgress: (fraction: number) => void): Promise<FileData> {
+export async function uploadFile(project: string, file: File, onProgress: (fraction: number) => void): Promise<FileData> {
+  const token = await bearer()
+  return uploadWithToken(project, file, token, onProgress)
+}
+
+function uploadWithToken(project: string, file: File, token: string, onProgress: (fraction: number) => void): Promise<FileData> {
   const mime = mimeFor(file)
   if (!mime) return Promise.reject(new Error('Only PDF, MP4, MP3 and images are supported'))
   if (file.size > MAX_UPLOAD) return Promise.reject(new Error('Files must be 50 MB or smaller'))
@@ -169,7 +240,7 @@ export function uploadFile(project: string, file: File, onProgress: (fraction: n
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`)
     xhr.setRequestHeader('apikey', SUPABASE_KEY)
-    xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_KEY}`)
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`)
     xhr.setRequestHeader('Content-Type', mime)
     xhr.setRequestHeader('x-upsert', 'false')
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)

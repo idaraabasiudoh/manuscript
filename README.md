@@ -2,7 +2,7 @@
 
 **Live:** https://manuscript-studios.vercel.app
 
-A shared, link-based notebook for video and short-film ideas. Go to `/<name>` (e.g. `/the-last-train`). The project is created on your first visit, and anyone with the link can read and edit it. There are no accounts.
+A shared notebook for video and short-film ideas. Sign in with an email and password, pick a username, then go to `/<name>` (e.g. `/the-last-train`) to create a project. New projects are private until you share them.
 
 A project is a single page made of **named blocks**. You drag blocks in from the sidebar and drag them up or down to reorder.
 
@@ -17,6 +17,13 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 | **Resources** | A reading or watch list | Numbered list of titles, links and notes |
 
 ## Features
+
+- **Accounts.** Sign up with an email and a password (8+ characters), then choose a username. You can change it any time in **Settings** (the account row at the bottom of the sidebar, or the chip on the home page). The home page and Settings list every project you own or that was shared with you, with your access level.
+- **Sharing.** The owner's **Share** button opens a dialog before anything is copied:
+  - **Add people** by username or email as **Can edit** or **Can view**. They need an account first. Change or remove anyone later.
+  - **General access:** *Only people added* (default), *Anyone with the link can view*, or *Anyone with the link can edit*.
+  - **Copy link** copies the address (on phones, Share opens the share sheet).
+  Someone without access sees a "You don't have access" screen with a sign-in form. Viewers get read mode only: a **View only** badge replaces the Read/Edit toggle, and there is no palette, editing or delete. Only the owner can share or delete a project.
 
 - **Writer-friendly formatting.** Labelled buttons (Title / Heading / Subheading / Body, **B** *I* <u>U</u> ~~S~~, quote, lists, center, divider, link) plus buttons specific to each kind: *Scene, Character, (beat), CUT TO:* for drama, *Indent / Stanza* for poetry, *Chapter / Scene break* for prose. Every button has a plain-English tooltip, and a **?** guide explains the rest. Writers never need to know markdown.
 - **Live preview.** The editor shows the formatted result side by side with the text on wide screens, and as Write/Preview tabs on narrow ones.
@@ -40,7 +47,7 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 ## Stack
 
 - **Frontend:** Vite, React 19, TypeScript, react-router. pdf.js is lazy-loaded to render PDFs.
-- **Backend:** Supabase. Postgres is accessed only through RPCs, files live in Storage, live sync uses Realtime broadcast and presence, and three Edge Functions handle Manu AI, link previews and deletes.
+- **Backend:** Supabase. Postgres is accessed only through RPCs, files live in Storage, live sync uses Realtime broadcast and presence, Supabase Auth handles accounts, and four Edge Functions handle sign-up, Manu AI, link previews and deletes.
 - **Hosting:** Vercel, serving the static SPA.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the data model and request flows, and [AGENT.md](AGENT.md) for conventions when working on the code.
@@ -58,7 +65,7 @@ npm run dev
 ```bash
 supabase link --project-ref <ref>
 supabase db push                                   # applies supabase/migrations
-supabase functions deploy chat unfurl delete       # verify_jwt=false is set in supabase/config.toml
+supabase functions deploy chat unfurl delete signup --use-api   # verify_jwt=false is set in supabase/config.toml
 supabase secrets set MANU_AI_KEY=... MANU_AI_MODEL=...   # enables Manu AI
 ```
 
@@ -70,7 +77,9 @@ The app is a static build (`npm run build` → `dist/`). `vercel.json` rewrites 
 
 ## Limits and caveats
 
-- **No auth by design.** Anyone with a project link can edit or delete it. Treat project names like unlisted links.
+- **Sharing needs an account.** You can only add people who have already signed up. There are no email invites, so nobody can claim an invite with an address they don't own.
+- **No email confirmation or password reset.** Sign-up creates a confirmed account straight away (via the `signup` function) to avoid email rate limits. A forgotten password has to be reset from the Supabase dashboard.
+- **Legacy projects.** Projects created before accounts existed have no owner and stay open to anyone with the link ("edit") until they're assigned to an account with SQL.
 - **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, PNG, JPEG, GIF and WebP.
 - **Edit conflicts.** Saves are last-write-wins per block. While you're editing a block, incoming changes to that block are held back so your text doesn't jump.
-- **AI cost.** Manu AI runs on your API key, and anyone with a project link can use it.
+- **AI cost.** Manu AI runs on your API key. Anyone who can open a project (including through an open link) can use it.

@@ -77,6 +77,15 @@ Deno.serve(async (req) => {
     while (history.length && history[0].role !== 'user') history.shift()
     if (!history.length) return json({ error: 'No user message' }, 400)
 
+    // Only people who can at least view the project may ask about it.
+    const anon = Deno.env.get('SUPABASE_ANON_KEY')!
+    const caller = createClient(Deno.env.get('SUPABASE_URL')!, anon, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? `Bearer ${anon}` } },
+    })
+    const { data: role } = await caller.rpc('project_role', { p_id: project })
+    if (!role) return json({ error: 'You don’t have access to this project' }, 403)
+
     const [{ data: proj }, { data: blocks }] = await Promise.all([
       admin.from('projects').select('title').eq('id', project).maybeSingle(),
       admin.from('blocks').select('id, kind, title, body, data').eq('project_id', project).order('position'),

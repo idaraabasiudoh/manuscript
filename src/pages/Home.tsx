@@ -1,13 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { AuthCard } from '../components/AuthCard'
 import { ArrowRight, KindIcon, Logo, ThemeToggle } from '../components/Icons'
-import { getRecent, NAME_RE, pad, toName } from '../lib/util'
+import { ProjectList } from '../components/ProjectList'
+import { useAuth } from '../lib/auth'
+import { NAME_RE, toName } from '../lib/util'
 
 export function HomePage() {
   const navigate = useNavigate()
+  const { ready, session, profile } = useAuth()
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
-  const recent = getRecent()
   const valid = NAME_RE.test(name)
 
   useEffect(() => {
@@ -26,7 +29,14 @@ export function HomePage() {
       <header className="home-top">
         <Logo />
         <div className="home-top-end">
-          <span className="mono-label">Shared notebooks for film ideas</span>
+          {session && profile?.username ? (
+            <Link to="/settings" className="account-chip" title="Settings">
+              <span className="account-avatar">{profile.username[0]}</span>
+              <span className="account-name">@{profile.username}</span>
+            </Link>
+          ) : (
+            <span className="mono-label">Shared notebooks for film ideas</span>
+          )}
           <ThemeToggle />
         </div>
       </header>
@@ -42,45 +52,37 @@ export function HomePage() {
           the web.
         </p>
 
-        <form onSubmit={open} className="home-form">
-          <label className={`address ${touched && !valid ? 'invalid' : ''}`}>
-            <span className="address-host">{location.host}/</span>
-            <input
-              value={name}
-              onChange={(e) => setName(toName(e.target.value))}
-              onBlur={() => name && setTouched(true)}
-              placeholder="my-short-film"
-              autoFocus
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              aria-label="Project name"
-            />
-            <button className="btn primary lg" disabled={!name}>
-              Open <ArrowRight width={16} height={16} />
-            </button>
-          </label>
-          <p className={`hint ${touched && !valid ? 'error' : ''}`}>
-            {touched && !valid ? '✕ ' : ''}3–48 characters: a–z, 0–9 and dashes
-          </p>
-        </form>
+        {!ready ? null : session ? (
+          <>
+            <form onSubmit={open} className="home-form">
+              <label className={`address ${touched && !valid ? 'invalid' : ''}`}>
+                <span className="address-host">{location.host}/</span>
+                <input
+                  value={name}
+                  onChange={(e) => setName(toName(e.target.value))}
+                  onBlur={() => name && setTouched(true)}
+                  placeholder="new-project-name"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Project name"
+                />
+                <button className="btn primary lg" disabled={!name}>
+                  Create <ArrowRight width={16} height={16} />
+                </button>
+              </label>
+              <p className={`hint ${touched && !valid ? 'error' : ''}`}>
+                {touched && !valid ? '✕ ' : ''}Name a project to create it (or open one you have access to): 3–48 characters, a–z, 0–9 and dashes
+              </p>
+            </form>
 
-        {recent.length > 0 && (
-          <section className="recent">
-            <h2 className="mono-label">Recently opened</h2>
-            <ol>
-              {recent.map((p, i) => (
-                <li key={p}>
-                  <Link to={`/${p}`} className="recent-row">
-                    <span className="recent-no">{pad(i + 1)}</span>
-                    <span className="recent-name">{p}</span>
-                    <span className="recent-leader" />
-                    <ArrowRight width={14} height={14} />
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          </section>
+            <section className="recent">
+              <h2 className="mono-label">Your projects</h2>
+              <ProjectList />
+            </section>
+          </>
+        ) : (
+          <AuthCard />
         )}
       </main>
 
