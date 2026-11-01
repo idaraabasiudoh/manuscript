@@ -12,11 +12,13 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 | **Drama** | Screenplays and stage plays | A structured script builder (title page, reusable cast, and scenes, lines, transitions, notes and act breaks), read as a typed screenplay page |
 | **Prose** | Stories, treatments, synopses | Book-style paragraphs, chapters and scene breaks |
 | **Notes** | Loglines, pitches, shot lists | Clean sans-serif text |
-| **File** | PDF, MP4, MP3 or image (up to 50 MB) | PDF pages render inline, plus video/audio players and images |
+| **File** | PDF, MP4, audio (MP3, M4A, WAV, OGG) or image (up to 50 MB), or a voice note recorded in the browser | PDF pages render inline, plus video players, images, and an animated waveform player for audio |
 | **Link** | A web page, video, song or post | YouTube, Vimeo, Loom, Spotify (songs, albums, playlists, episodes, artists, regional and short links) Instagram (reels and posts, sized to fit) and TikTok (videos, including vm.tiktok.com short links) play inline; other links get an Open Graph card |
 | **Resources** | A reading or watch list | Numbered list of titles, links and notes |
 
 ## Features
+
+- **Voice notes.** Record audio straight from the browser, with a live waveform, a timer and pause/resume, then listen back before keeping it. Use **Voice note** in the sidebar (or the Add row) to make it a File block, or press **Voice** in a text block's toolbar to drop a compact player into the text where your cursor is. Audio players have a seekable waveform that fills with the accent gradient as it plays (drag or use the arrow keys), a speed button (1×–2×), and only one plays at a time.
 
 - **Accounts.** Sign up with an email and a password (8+ characters), then choose a username. You can change it any time in **Settings** (the account row at the bottom of the sidebar, or the chip on the home page). The home page and Settings list every project you own or that was shared with you, with your access level.
 - **Sharing.** The owner's **Share** button opens a dialog before anything is copied:
@@ -80,6 +82,7 @@ The app is a static build (`npm run build` → `dist/`). `vercel.json` rewrites 
 - **Sharing needs an account.** You can only add people who have already signed up. There are no email invites, so nobody can claim an invite with an address they don't own.
 - **No email confirmation or password reset.** Sign-up creates a confirmed account straight away (via the `signup` function) to avoid email rate limits. A forgotten password has to be reset from the Supabase dashboard.
 - **Legacy projects.** Projects created before accounts existed have no owner and stay open to anyone with the link ("edit") until they're assigned to an account with SQL.
-- **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, PNG, JPEG, GIF and WebP.
+- **Uploads.** Files are capped at 50 MB (the Supabase free-plan limit). Allowed types are PDF, MP4, MP3, M4A, WAV, OGG, audio WebM, PNG, JPEG, GIF and WebP. Recordings are WebM/Opus in Chrome, Firefox and Edge, and M4A in Safari.
+- **Inline voice notes.** Deleting the line from a text block removes the player but keeps the file until the block or project is deleted.
 - **Edit conflicts.** Saves are last-write-wins per block. While you're editing a block, incoming changes to that block are held back so your text doesn't jump.
 - **AI cost.** Manu AI runs on your API key. Only people who can edit a project (including through an "anyone can edit" link) can use it.

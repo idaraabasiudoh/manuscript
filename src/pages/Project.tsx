@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
-import { ArrowLeft, Lock, Settings } from 'lucide-react'
+import { ArrowLeft, Lock, Mic, Settings } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BlockView } from '../components/Block'
 import { Chat } from '../components/Chat'
@@ -19,12 +19,14 @@ import {
   getProject,
   supabase,
   updateBlock,
+  mimeFor,
   uploadFile,
   type Block,
   type BlockKind,
   type BlockPatch,
   type Project,
 } from '../lib/supabase'
+import { audioMeta } from '../lib/audio'
 import { isScript } from '../lib/script'
 import { KINDS, PALETTE } from '../lib/templates'
 import { between, blockSlug, forgetProject, load, NAME_RE, pad, plural, rememberProject, save, timeAgo, wordCount } from '../lib/util'
@@ -35,6 +37,8 @@ const SAVE_DELAY = 600
 const TITLE_KEY = '__title'
 
 type DropKind = 'palette' | 'block' | 'files'
+/** Palette drag payload for the Voice note item (a File block that opens on the recorder). */
+const VOICE = 'voice'
 type Upload = { id: string; name: string; progress: number; error?: string }
 
 export function ProjectPage() {
@@ -50,7 +54,7 @@ export function ProjectPage() {
   const [editing, setEditing] = useState<Set<string>>(new Set())
   const [reading, setReading] = useState(false)
   const [focusId, setFocusId] = useState<string>()
-  const [adding, setAdding] = useState<{ kind: BlockKind; position: number } | null>(null)
+  const [adding, setAdding] = useState<{ kind: BlockKind; position: number; record?: boolean } | null>(null)
   const [drop, setDrop] = useState<{ index: number; kind: DropKind } | null>(null)
   const [dragId, setDragId] = useState<string>()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -328,8 +332,9 @@ export function ProjectPage() {
       const uid = crypto.randomUUID()
       setUploads((u) => [...u, { id: uid, name: file.name, progress: 0 }])
       try {
+        const meta = mimeFor(file)?.startsWith('audio/') ? await audioMeta(file) : {}
         const data = await uploadFile(id, file, (progress) => setUploads((u) => u.map((x) => (x.id === uid ? { ...x, progress } : x))))
-        await createBlock({ kind: 'file', title: file.name.replace(/\.[^.]+$/, ''), body: '', data }, position)
+        await createBlock({ kind: 'file', title: file.name.replace(/\.[^.]+$/, ''), body: '', data: { ...data, ...meta } }, position)
         setUploads((u) => u.filter((x) => x.id !== uid))
       } catch (e) {
         setUploads((u) => u.map((x) => (x.id === uid ? { ...x, error: e instanceof Error ? e.message : String(e) } : x)))
@@ -378,8 +383,9 @@ export function ProjectPage() {
     e.preventDefault()
     const index = dropIndex(e)
     if (kind === 'palette') {
-      const k = e.dataTransfer.getData(KIND_MIME) as BlockKind
-      if (KINDS[k]) setAdding({ kind: k, position: positionAt(index) })
+      const k = e.dataTransfer.getData(KIND_MIME)
+      if (k === VOICE) setAdding({ kind: 'file', position: positionAt(index), record: true })
+      else if (KINDS[k as BlockKind]) setAdding({ kind: k as BlockKind, position: positionAt(index) })
     } else if (kind === 'block') {
       const blockId = e.dataTransfer.getData(BLOCK_MIME)
       const from = blocks.findIndex((b) => b.id === blockId)
@@ -403,7 +409,7 @@ export function ProjectPage() {
     scrollTo(id)
   }
 
-  const startPaletteDrag = (e: DragEvent, kind: BlockKind) => {
+  const startPaletteDrag = (e: DragEvent, kind: BlockKind | typeof VOICE) => {
     e.dataTransfer.setData(KIND_MIME, kind)
     e.dataTransfer.effectAllowed = 'copy'
     setSidebarOpen(false)
@@ -531,6 +537,23 @@ export function ProjectPage() {
                     </button>
                   </li>
                 ))}
+                <li>
+                  <button
+                    className="palette-item kind-voice"
+                    draggable
+                    onDragStart={(e) => startPaletteDrag(e, VOICE)}
+                    onClick={() => (setAdding({ kind: 'file', position: endPosition(), record: true }), setSidebarOpen(false))}
+                  >
+                    <span className="palette-icon">
+                      <Mic size={16} strokeWidth={1.75} />
+                    </span>
+                    <span className="palette-text">
+                      <strong>Voice note</strong>
+                      <span>Record audio right here</span>
+                    </span>
+                    <Plus className="palette-plus" width={14} height={14} />
+                  </button>
+                </li>
               </ul>
             </section>
           )}
@@ -769,6 +792,9 @@ export function ProjectPage() {
                       <KindIcon kind={k} width={13} height={13} /> {KINDS[k].label}
                     </button>
                   ))}
+                  <button className="chip" onClick={() => setAdding({ kind: 'file', position: endPosition(), record: true })} title="Record a voice note">
+                    <Mic size={13} strokeWidth={1.75} /> Voice note
+                  </button>
                 </div>
               )}
             </div>
@@ -791,7 +817,7 @@ export function ProjectPage() {
         />
       )}
 
-      {adding && <NewBlockDialog project={id} kind={adding.kind} onCreate={(nb) => createBlock(nb, adding.position)} onClose={() => setAdding(null)} />}
+      {adding && <NewBlockDialog project={id} kind={adding.kind} record={adding.record} onCreate={(nb) => createBlock(nb, adding.position)} onClose={() => setAdding(null)} />}
 
       {shareOpen && project && (
         <ShareDialog

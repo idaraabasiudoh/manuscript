@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { renderMarkdown } from '../lib/markdown'
-import type { TextKind } from '../lib/supabase'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useParams } from 'react-router-dom'
+import { formatTime } from '../lib/audio'
+import { uploadFile, type TextKind, type VoiceMeta } from '../lib/supabase'
 import {
+  Mic,
   AlignCenter,
   Bold,
   IndentDecrease,
@@ -16,8 +18,18 @@ import {
   Underline,
 } from 'lucide-react'
 import { Help } from './Icons'
+import { RichText } from './RichText'
+import { VoiceRecorder, type Recording } from './VoiceRecorder'
 
-type Props = { kind: TextKind; value: string; onChange: (value: string) => void; autoFocus?: boolean }
+type Props = {
+  kind: TextKind
+  value: string
+  onChange: (value: string) => void
+  autoFocus?: boolean
+  voices?: Record<string, VoiceMeta>
+  /** Called after a voice note is uploaded, to store its length and waveform with the block. */
+  onVoice?: (path: string, meta: VoiceMeta) => void
+}
 
 type Tool = {
   id: string
@@ -184,12 +196,30 @@ const EXTRA_LABEL: Record<TextKind, string> = { text: '', poetry: 'Verse', drama
 
 // ---- Component ----------------------------------------------------------------
 
-export function TextEditor({ kind, value, onChange, autoFocus }: Props) {
+export function TextEditor({ kind, value, onChange, autoFocus, voices, onVoice }: Props) {
   const ref = useRef<HTMLTextAreaElement>(null)
+  const { id: project } = useParams()
   const [line, setLine] = useState('')
   const [guide, setGuide] = useState(false)
   const [tab, setTab] = useState<'write' | 'preview'>('write')
-  const html = useMemo(() => renderMarkdown(value, kind), [value, kind])
+  const [recording, setRecording] = useState(false)
+  const [upload, setUpload] = useState<{ progress: number; error?: string } | null>(null)
+
+  /** Uploads a take and drops a player line where the cursor was. */
+  const insertVoice = async (rec: Recording) => {
+    if (!project || !ref.current) return
+    setUpload({ progress: 0 })
+    try {
+      const data = await uploadFile(project, rec.file, (progress) => setUpload({ progress }))
+      onVoice?.(data.path, rec.meta)
+      setTab('write')
+      ops(ref.current).insertLines(`[Voice note · ${formatTime(rec.meta.duration)}](audio:${data.path})`)
+      setRecording(false)
+      setUpload(null)
+    } catch (e) {
+      setUpload({ progress: 0, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
 
   useLayoutEffect(() => {
     const ta = ref.current
@@ -253,6 +283,21 @@ export function TextEditor({ kind, value, onChange, autoFocus }: Props) {
         <div className="tool-group sizes" aria-label="Text size">
           {SIZES.map((t) => button(t, `size-${t.id}`))}
         </div>
+        {onVoice && (
+          <div className="tool-group">
+            <button
+              type="button"
+              className={`tool voice-tool ${recording ? 'on' : ''}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setRecording((r) => !r)}
+              title="Voice note — record audio and place a player on its own line where your cursor is."
+              aria-label="Record a voice note"
+              aria-expanded={recording}
+            >
+              <Mic size={16} strokeWidth={1.9} /> Voice
+            </button>
+          </div>
+        )}
         <div className="tool-group">{STYLES.map((t) => button(t, 'square'))}</div>
         <div className="tool-group">{STRUCTURE.map((t) => button(t, 'square'))}</div>
         {extras.length > 0 && (
@@ -274,6 +319,13 @@ export function TextEditor({ kind, value, onChange, autoFocus }: Props) {
 
       {guide && <Guide kind={kind} />}
 
+      {recording && (
+        <div className="editor-recorder">
+          <VoiceRecorder onUse={insertVoice} onCancel={() => (setRecording(false), setUpload(null))} useLabel="Add to text" busy={!!upload && !upload.error} progress={upload?.progress} />
+          {upload?.error && <p className="hint error">{upload.error}</p>}
+        </div>
+      )}
+
       <div className={`editor-split show-${tab}`}>
         <div className="editor-write">
           <span className="pane-label mono-label">Write</span>
@@ -293,7 +345,7 @@ export function TextEditor({ kind, value, onChange, autoFocus }: Props) {
         <div className="editor-preview">
           <span className="pane-label mono-label">Preview</span>
           {value.trim() ? (
-            <div className={`md md-${kind}`} dangerouslySetInnerHTML={{ __html: html }} />
+            <RichText src={value} kind={kind} voices={voices} />
           ) : (
             <p className="muted preview-empty">Your formatted text appears here as you write.</p>
           )}
@@ -325,6 +377,7 @@ function Guide({ kind }: { kind: TextKind }) {
     )
   if (kind === 'poetry') rows.push(['Indent', 'Spaces at the start of a line are kept, so you can cascade lines.'])
   if (kind === 'prose') rows.push(['✦ ✦ ✦', 'A scene break: a jump in time or place.'])
+  rows.push(['Voice', 'Record a voice note. It becomes a player on its own line; the line starting [Voice note… is the player, so delete that line to remove it.'])
   return (
     <dl className="guide">
       {rows.map(([k, v]) => (

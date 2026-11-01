@@ -7,7 +7,7 @@ export const KINDS: Record<BlockKind, KindMeta> = {
   poetry: { label: 'Poetry', tagline: 'Verse, lyrics, voice-over', hint: 'Line breaks & stanzas kept' },
   drama: { label: 'Drama', tagline: 'Screenplays & stage plays', hint: 'Scene, character, dialogue' },
   prose: { label: 'Prose', tagline: 'Stories, treatments, synopses', hint: 'Chapters & scene breaks' },
-  file: { label: 'File', tagline: 'PDF, MP4, MP3 or image', hint: 'Previewed inline' },
+  file: { label: 'File', tagline: 'PDF, video, audio or image', hint: 'Previewed inline' },
   link: { label: 'Link', tagline: 'A web page, video or reference', hint: 'Rich preview card' },
   resources: { label: 'Resources', tagline: 'A reading list of references', hint: 'Links with notes' },
 }

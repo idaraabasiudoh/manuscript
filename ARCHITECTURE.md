@@ -60,10 +60,10 @@ Browser (Vite + React 19 SPA on Vercel)
 
 What `data` holds for each kind:
 
-- `file`: `{ path, name, mime, size }`. `path` is the Storage key.
+- `file`: `{ path, name, mime, size, duration?, peaks?, voice? }`. `path` is the Storage key. Audio gets `duration` (seconds) and `peaks` (64 numbers, 0–1) for the waveform; `voice: true` marks a browser recording.
 - `link`: `{ url, title, description, image, site }`, captured once when the block is created.
 - `resources`: `{ items: [{ id, title, url, note }] }`
-- text kinds: `{ template }`, the template the block was started from (shown as a label).
+- text kinds: `{ template, voices? }`. `template` is the one the block was started from (shown as a label). `voices` maps each inline voice note's Storage path to `{ duration, peaks }`. The note itself is a line in `body`: `[label](audio:<project>/<file>)`.
 - `drama` with a structured script: `{ template, script, originalText? }`.
   - `script` is `{ version: 1, meta: { title, format, genre, logline, author }, cast: [{ id, name, age, description, color }], elements: [...], theme?, font? }`. `theme` is a `PAGE_THEMES` id (missing for the default, Parchment). `font` is a `PAGE_FONTS` id (missing for Courier Prime), and non-default fonts load from Google Fonts only when used (`loadPageFont()`).
   - Each element has `{ id, type }` plus fields for its type: `scene` (setting, location, time), `action` (text), `dialogue` (character id, parenthetical, text), `transition` (text), `note` (label, text) or `break` (text).
@@ -107,8 +107,10 @@ Edge functions run with `verify_jwt = false`, but `chat` and `delete` build a cl
 
 **Uploading.** Files go up with XHR so the client gets progress events. They're POSTed to `/storage/v1/object/project-files/<project>/<uuid>-<name>`, and then `add_block(kind='file')` records them. Files dropped onto the page skip the dialog.
 
+**Voice notes.** `VoiceRecorder` uses `getUserMedia` + `MediaRecorder` (`recordingFormat()` picks WebM/Opus or MP4/AAC) and an `AnalyserNode` for the live waveform; the levels it samples become the stored `peaks`, so no decoding is needed afterwards. Uploaded audio gets peaks from `audioMeta()` (`decodeAudioData`) before upload. A File-block take is uploaded as `kind='file'` with `voice: true`. In a text block, the editor uploads the take, stores its meta in `data.voices`, and inserts the `audio:` line at the cursor. `renderSegments()` splits text around those lines and `RichText` mounts an `AudioPlayer` for each, so players keep playing while the text around them changes; elsewhere (`renderMarkdown`) the line shows as a plain label. `claimPlayback()` pauses the previous player when another starts.
+
 **Deleting.**
-- Block: text-kind blocks use the `delete_block` RPC. File blocks call the `delete` function with `{ block }`, which removes the Storage object and then the row.
+- Block: text-kind blocks use the `delete_block` RPC. File blocks, and text blocks with inline voice notes, call the `delete` function with `{ block }`, which removes `data.path` and every `data.voices` key inside the project's folder, then the row.
 - Project: calls the `delete` function with `{ project }`. It lists every object under `<project>/` (paginated), removes them, then deletes the project row. The cascade removes the blocks. Other open clients get a broadcast, their refetch returns null, and they show "This project was deleted".
 
 **Assistant.** The client sends `{ project, messages (last 16), focus }` to `chat`. The function loads the project's title and blocks with the service role and builds a system prompt. That prompt holds the project content (capped at about 60k characters), notes which block the writer is focused on, and lists the formatting the editor understands. The function calls the model set in the `MANU_AI_MODEL` secret, using the `MANU_AI_KEY` secret, with streaming on. It turns the streamed text into a plain-text stream for the browser and skips thought parts. Errors from the provider are logged on the server, and the browser only gets a generic message. The system prompt tells the assistant to present itself only as Manu AI and never name the model or company behind it. Chat history is saved per browser in `localStorage`.
@@ -122,7 +124,8 @@ src/
   lib/
     supabase.ts            client, types, RPC wrappers (incl. sharing/profile), auth calls, edge-function calls, XHR upload
     auth.tsx               AuthProvider / useAuth: session + profile
-    markdown.ts            safe formatter (escape first) incl. screenplay rules for drama
+    markdown.ts            safe formatter (escape first) incl. screenplay rules for drama; renderSegments for voice notes
+    audio.ts               recording format, waveform peaks, time formatting, playback bus
     script.ts              structured script model, text parser (plain → structured) and serializer
     templates.ts           block kinds metadata + templates per text kind
     util.ts                names, recent projects, positions, formatting helpers
@@ -140,6 +143,9 @@ src/
     ScriptView.tsx         structured script as a typed screenplay page
     NewBlockDialog.tsx     name + template / file / URL
     PdfViewer.tsx          pdf.js canvas renderer (lazy chunk)
+    AudioPlayer.tsx        waveform player (card + inline), seek by drag/keys, speed, one-at-a-time
+    VoiceRecorder.tsx      in-browser recording: live waveform, timer, pause, review
+    RichText.tsx           formatted text with voice-note players mounted in place
     Chat.tsx               Manu AI panel (greeting, suggestion cards, block picker, shimmer, retry, wide mode, ⌘J)
     Icons.tsx              Lucide icon wrappers (shared stroke/size), block-kind icons, logo, Manu AI sparkle
 supabase/

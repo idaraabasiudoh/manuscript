@@ -66,3 +66,6 @@ Manuscript is a shared notebook for film ideas with email/password accounts, use
 - The free plan caps uploads at 50 MB. The bucket enforces the same limit, so raise both together.
 - Under StrictMode, effects and state updaters run twice in dev. Never put side effects inside a `setState` updater.
 - pdf.js is dynamically imported, so the worker ends up in its own chunk. Keep it out of the main bundle.
+- Recording needs a secure context (https or localhost). Chrome's recorded WebM reports `duration = Infinity`, so always store `duration` with a recording; `AudioPlayer` only falls back to a seek trick when none is stored.
+- New audio formats need three changes together: `ACCEPTED`/`mimeFor` in `supabase.ts`, the bucket's `allowed_mime_types` (a new migration), and `fileType()` in `Block.tsx`.
+- Render block text with `RichText`, not `renderMarkdown` + `dangerouslySetInnerHTML`, wherever voice notes should play.

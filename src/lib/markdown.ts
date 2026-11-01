@@ -7,7 +7,35 @@
 //
 // Drama blocks also understand screenplay lines:
 //   INT. / EXT. scene headings · @NAME character cues (+ dialogue below) · (beat) · CUT TO:
+//
+// A line that is exactly [label](audio:<project>/<file>) is a voice note. renderSegments()
+// splits text around those lines so the page can mount a real player there.
 import type { TextKind } from './supabase'
+
+/** A voice-note line. The path is a Storage key inside the project's folder. */
+export const AUDIO_LINE = /^\[([^\]\n]{0,120})\]\(audio:([a-z0-9][a-z0-9-]{1,46}[a-z0-9]\/[A-Za-z0-9._-]{1,160})\)$/
+
+export type Segment = { html: string } | { audio: { path: string; label: string } }
+
+/** Formats text like renderMarkdown, but returns voice-note lines as separate segments. */
+export function renderSegments(src: string, kind: TextKind = 'text'): Segment[] {
+  const out: Segment[] = []
+  let chunk: string[] = []
+  const push = () => {
+    const html = renderMarkdown(chunk.join('\n'), kind)
+    if (html) out.push({ html })
+    chunk = []
+  }
+  for (const line of src.replace(/\r\n?/g, '\n').split('\n')) {
+    const m = line.trim().match(AUDIO_LINE)
+    if (m) {
+      push()
+      out.push({ audio: { label: m[1] || 'Voice note', path: m[2] } })
+    } else chunk.push(line)
+  }
+  push()
+  return out
+}
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -73,7 +101,11 @@ export function renderMarkdown(src: string, kind: TextKind = 'text') {
     }
 
     let m: RegExpMatchArray | null
-    if ((m = t.match(/^(#{1,3})\s+(.*)$/))) {
+    if ((m = t.match(AUDIO_LINE))) {
+      // Where no player is mounted (template previews, chat), show a plain label.
+      flush()
+      out.push(`<p class="md-audio-ref">🎙 ${esc(m[1] || 'Voice note')}</p>`)
+    } else if ((m = t.match(/^(#{1,3})\s+(.*)$/))) {
       flush()
       const level = m[1].length
       out.push(`<h${level}>${inline(m[2])}</h${level}>`)

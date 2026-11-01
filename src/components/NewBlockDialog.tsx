@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { renderMarkdown } from '../lib/markdown'
 import { emptyScript, parseScript, toText } from '../lib/script'
+import { audioMeta, type AudioMeta } from '../lib/audio'
 import { ACCEPT_ATTR, isTextKind, mimeFor, unfurl, uploadFile, type Block, type BlockKind, type LinkData } from '../lib/supabase'
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes } from '../lib/util'
+import { Mic } from 'lucide-react'
 import { Close, KindIcon, Upload } from './Icons'
 import { normalizeUrl } from './Block'
+import { VoiceRecorder, type Recording } from './VoiceRecorder'
 
 export type NewBlock = Pick<Block, 'kind' | 'title' | 'body' | 'data'>
 
@@ -14,13 +17,16 @@ type Props = {
   kind: BlockKind
   onCreate: (block: NewBlock) => Promise<void>
   onClose: () => void
+  /** Open a File block on the recorder instead of the file picker. */
+  record?: boolean
 }
 
-export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
+export function NewBlockDialog({ project, kind, onCreate, onClose, record }: Props) {
+  const [source, setSource] = useState<'upload' | 'record'>(record ? 'record' : 'upload')
   const templates = isTextKind(kind) ? TEMPLATES[kind] : []
   const [templateId, setTemplateId] = useState(templates[1]?.id ?? 'blank')
   const template = templates.find((t) => t.id === templateId)
-  const [title, setTitle] = useState(template?.title ?? defaultTitle(kind))
+  const [title, setTitle] = useState(template?.title ?? (record ? 'Voice note' : defaultTitle(kind)))
   const [titleTouched, setTitleTouched] = useState(false)
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -45,7 +51,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
 
   const pickFile = (f: File | undefined) => {
     if (!f) return
-    if (!mimeFor(f)) return setError('Only PDF, MP4, MP3 and image files can be added.')
+    if (!mimeFor(f)) return setError('Only PDF, MP4 video, audio (MP3, M4A, WAV, OGG) and image files can be added.')
     setError('')
     setFile(f)
     if (!titleTouched) setTitle(f.name.replace(/\.[^.]+$/, ''))
@@ -53,7 +59,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (busy) return
+    if (busy || (kind === 'file' && source === 'record')) return
     setError('')
     setBusy(true)
     try {
@@ -69,8 +75,9 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
       } else if (kind === 'file') {
         if (!file) throw new Error('Choose a file first.')
         setProgress(0)
+        const meta: AudioMeta = mimeFor(file)?.startsWith('audio/') ? await audioMeta(file) : {}
         const data = await uploadFile(project, file, setProgress)
-        await onCreate({ kind, title, body: '', data })
+        await onCreate({ kind, title, body: '', data: { ...data, ...meta } })
       } else if (kind === 'link') {
         const target = normalizeUrl(url)
         if (!target) throw new Error('That doesn’t look like a web address.')
@@ -94,6 +101,23 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
     }
   }
 
+  /** A finished recording goes straight up as a voice-note File block. */
+  const addRecording = async (rec: Recording) => {
+    if (busy) return
+    setError('')
+    setBusy(true)
+    setProgress(0)
+    try {
+      const data = await uploadFile(project, rec.file, setProgress)
+      await onCreate({ kind: 'file', title: title.trim() || 'Voice note', body: '', data: { ...data, ...rec.meta, voice: true } })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setProgress(null)
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
       <form className={`dialog new-block ${isTextKind(kind) ? 'wide' : ''}`} onSubmit={submit}>
@@ -102,7 +126,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
             <p className="mono-label">
               <KindIcon kind={kind} width={13} height={13} /> New {meta.label} block
             </p>
-            <h2>{HEADINGS[kind]}</h2>
+            <h2>{kind === 'file' && source === 'record' ? 'Record a voice note' : HEADINGS[kind]}</h2>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} disabled={busy} aria-label="Close">
             <Close />
@@ -132,6 +156,19 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
         )}
 
         {kind === 'file' && (
+          <div className="segmented source-switch" role="tablist" aria-label="Add a file by">
+            <button type="button" role="tab" aria-selected={source === 'upload'} className={source === 'upload' ? 'on' : ''} onClick={() => setSource('upload')} disabled={busy}>
+              <Upload width={14} height={14} /> Upload a file
+            </button>
+            <button type="button" role="tab" aria-selected={source === 'record'} className={source === 'record' ? 'on' : ''} onClick={() => (setSource('record'), !titleTouched && setTitle('Voice note'))} disabled={busy}>
+              <Mic size={14} /> Record voice note
+            </button>
+          </div>
+        )}
+
+        {kind === 'file' && source === 'record' && <VoiceRecorder onUse={(rec) => addRecording(rec)} useLabel="Add block" busy={busy} progress={progress} />}
+
+        {kind === 'file' && source === 'upload' && (
           <div
             className={`dropzone ${dragging ? 'over' : ''} ${file ? 'has-file' : ''}`}
             onClick={() => !busy && fileInput.current?.click()}
@@ -149,7 +186,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
             ) : (
               <>
                 <strong>Drop a file here, or click to choose</strong>
-                <span className="muted">PDF scripts, MP4 videos, MP3 audio or images · up to 50 MB</span>
+                <span className="muted">PDF scripts, MP4 videos, audio (MP3, M4A, WAV) or images · up to 50 MB</span>
               </>
             )}
             {progress !== null && (
@@ -172,6 +209,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
 
         {error && <p className="hint error">✕ {error}</p>}
 
+        {!(kind === 'file' && source === 'record') && (
         <footer className="dialog-foot">
           <button type="button" className="btn" onClick={onClose} disabled={busy}>
             Cancel
@@ -180,6 +218,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
             {busy ? (progress !== null ? `Uploading ${Math.round(progress * 100)}%` : 'Adding…') : 'Add block'}
           </button>
         </footer>
+        )}
       </form>
     </div>
   )

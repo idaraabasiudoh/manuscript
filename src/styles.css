@@ -553,11 +553,6 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 .spinner { width: 18px; height: 18px; border: 2px solid var(--surface-3); border-top-color: var(--ai-2); border-radius: 50%; animation: spin 0.7s linear infinite; }
 
 .file-stage.audio { background: var(--surface); color: var(--text); }
-.audio { display: flex; flex-direction: column; gap: 16px; padding: 26px 24px 20px; }
-.audio-wave { display: flex; align-items: center; gap: 3px; height: 64px; }
-.audio-wave i { flex: 1; border-radius: 3px; background: var(--ai-gradient); background-size: 4800% 100%; opacity: 0.85; }
-.audio-name { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -0.015em; }
-.audio audio { width: 100%; }
 .file-bar { display: flex; align-items: center; gap: 10px; padding: 12px 4px 0; }
 .file-type { padding: 3px 9px; border-radius: 999px; background: var(--surface); color: var(--text-2); font-size: 11px; font-weight: 600; letter-spacing: 0.03em; }
 .file-name { flex: 1; font-weight: 500; font-size: 13.5px; }
@@ -1138,6 +1133,138 @@ a.res-title svg { color: var(--muted); }
   .pg-line { margin: 0 0 0 4% !important; }
   .se-scene-row { grid-template-columns: 1fr; grid-template-areas: 'setting' 'time' 'loc'; }
   .se-char-top { flex-wrap: wrap; }
+}
+
+/* ---------- Audio: player, recorder, inline voice notes ---------- */
+.player { --bar-off: color-mix(in srgb, var(--text) 18%, transparent); --bar-ghost: color-mix(in srgb, var(--text) 38%, transparent); position: relative; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.player.card { padding: 22px 22px 20px; }
+.player-head { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; max-width: 100%; }
+.player-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; background: var(--bg); color: var(--text-2); font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.player-name { margin: 0; max-width: 100%; font-size: 17px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+.player-row { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+.player-play {
+  position: relative; display: grid; place-items: center; flex-shrink: 0; width: 52px; height: 52px; border: 0; border-radius: 50%; padding: 0;
+  background: var(--text); color: var(--bg); cursor: pointer; transition: transform 0.18s cubic-bezier(0.3, 1.4, 0.5, 1), background 0.25s;
+}
+.player-play:hover { transform: scale(1.06); }
+.player-play:active { transform: scale(0.94); }
+.player-play:disabled { opacity: 0.4; cursor: default; transform: none; }
+.player-play svg { position: relative; z-index: 1; }
+.player-play-icon { margin-left: 2px; }
+.player.playing .player-play { background: var(--ai-gradient); color: #fff; }
+.player-ring { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+.player.playing .player-ring { animation: player-ring 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; background: var(--ai-gradient); }
+@keyframes player-ring { 0% { transform: scale(1); opacity: 0.45; } 100% { transform: scale(1.55); opacity: 0; } }
+
+.player-wave { position: relative; display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; height: 56px; cursor: pointer; touch-action: none; outline: 0; border-radius: 10px; }
+.player-wave:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--line-strong); }
+.player-wave i {
+  flex: 1; min-width: 2px; border-radius: 999px; background: var(--bar-off); transform-origin: center;
+  transition: background-color 0.2s, height 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.player-wave i.ghost { background: var(--bar-ghost); }
+.player-wave i.played, .player-wave i.edge { background-image: var(--ai-gradient); background-size: 6400% 100%; }
+.player.inline .player-wave i.played, .player.inline .player-wave i.edge { background-size: 3600% 100%; }
+.player-wave i.edge { opacity: 0.65; }
+.player-wave i.live { animation: player-bar 0.75s ease-in-out infinite alternate; }
+@keyframes player-bar { 0% { transform: scaleY(0.7); } 100% { transform: scaleY(1.18); } }
+.player-head-line {
+  position: absolute; top: 6%; bottom: 6%; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--text); opacity: 0;
+  transition: opacity 0.2s; pointer-events: none;
+}
+.player.playing .player-head-line, .player.scrubbing .player-head-line, .player-wave:hover .player-head-line { opacity: 0.55; }
+
+.player-time { flex-shrink: 0; min-width: 40px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+.player-total { color: var(--muted); font-weight: 500; }
+.player-speed {
+  flex-shrink: 0; height: 28px; min-width: 42px; padding: 0 8px; border: 0; border-radius: 999px; background: var(--bg); color: var(--text-2);
+  font: 600 12px var(--sans); font-variant-numeric: tabular-nums; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.player-speed:hover { background: var(--surface-2); color: var(--text); }
+
+.player-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.player-eq i { width: 2.5px; height: 40%; border-radius: 2px; background: currentColor; }
+.player.playing .player-eq i { animation: player-eq 0.8s ease-in-out infinite alternate; }
+.player.playing .player-eq i:nth-child(2) { animation-delay: -0.3s; }
+.player.playing .player-eq i:nth-child(3) { animation-delay: -0.55s; }
+@keyframes player-eq { 0% { height: 25%; } 100% { height: 100%; } }
+
+/* Inline voice notes: a compact pill in the text */
+.player.inline { display: inline-flex; width: min(100%, 440px); padding: 6px 8px 6px 6px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.player.inline .player-row { gap: 10px; }
+.player.inline .player-play { width: 36px; height: 36px; }
+.player.inline .player-wave { height: 28px; gap: 2px; }
+.player.inline .player-time { min-width: 34px; font-size: 12px; }
+.player.inline .player-speed { height: 24px; min-width: 34px; font-size: 11px; background: var(--bg); }
+.player.inline.playing { box-shadow: inset 0 0 0 1px transparent, 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent), var(--glow); }
+.md-audio { margin: 0.9em 0; font-family: var(--sans); line-height: 1; }
+.md > .md-audio:first-child { margin-top: 0; }
+.md > .md-audio:last-child { margin-bottom: 0; }
+.md-seg { display: contents; }
+.md > .md-seg:first-child > :first-child { margin-top: 0; }
+.md > .md-seg:last-child > :last-child { margin-bottom: 0; }
+.md-audio-ref { font-family: var(--sans); font-size: 0.9em; color: var(--muted); }
+.script-page .md-audio { display: flex; justify-content: center; }
+
+@container blockbody (max-width: 440px) {
+  .player.card { padding: 18px 16px 16px; }
+  .player.card .player-play { width: 44px; height: 44px; }
+  .player.card .player-wave { height: 44px; gap: 2px; }
+  .player-total { display: none; }
+}
+@container blockbody (max-width: 320px) {
+  .player-speed { display: none; }
+  .player.card .player-row { gap: 10px; }
+}
+
+/* Recorder */
+.recorder { display: flex; flex-direction: column; gap: 14px; padding: 18px; border-radius: 22px; background: var(--surface); }
+.recorder.review { padding: 4px 4px 14px; }
+.recorder.review .recorder-actions { padding: 0 14px; }
+.recorder-stage { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.recorder-mic {
+  position: relative; display: grid; place-items: center; flex-shrink: 0; width: 64px; height: 64px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--ai-gradient); color: #fff; cursor: pointer; transition: transform 0.18s cubic-bezier(0.3, 1.4, 0.5, 1), background 0.25s;
+}
+.recorder-mic:hover { transform: scale(1.05); }
+.recorder-mic:active { transform: scale(0.94); }
+.recorder-mic:disabled { opacity: 0.6; cursor: progress; }
+.recorder-mic svg { position: relative; z-index: 1; }
+.recorder-halo { position: absolute; inset: 0; border-radius: 50%; background: inherit; pointer-events: none; }
+.recorder.idle .recorder-halo, .recorder.error .recorder-halo { animation: player-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
+.recorder.recording .recorder-mic, .recorder.paused .recorder-mic { background: var(--danger); }
+.recorder.recording .recorder-halo { animation: player-ring 1.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
+.recorder-live { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; height: 56px; }
+.recorder-live i { flex: 1; min-width: 2px; height: 100%; border-radius: 999px; background: var(--ai-gradient); background-size: 4400% 100%; transform-origin: center; transition: transform 0.09s linear; }
+.recorder.idle .recorder-live i, .recorder.asking .recorder-live i, .recorder.error .recorder-live i { background: var(--line-strong); }
+.recorder.paused .recorder-live { opacity: 0.45; }
+.recorder-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; min-width: 72px; }
+.recorder-time { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text); }
+.recorder-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.recorder-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); animation: recorder-blink 1.1s ease-in-out infinite; }
+@keyframes recorder-blink { 50% { opacity: 0.25; } }
+.recorder-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.recorder-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
+.recorder-error { margin: 0; }
+.recorder .player.card { padding: 18px 14px 4px; }
+
+.editor-recorder { margin: 10px 0 4px; }
+.editor-recorder .hint { margin: 8px 0 0 6px; }
+.voice-tool { display: inline-flex; align-items: center; gap: 6px; }
+.source-switch { align-self: flex-start; }
+
+@media (max-width: 520px) {
+  .recorder { padding: 14px; }
+  .recorder-stage { gap: 12px; }
+  .recorder-mic { width: 54px; height: 54px; }
+  .recorder-live { height: 44px; gap: 2px; }
+  .recorder-meta { min-width: 56px; }
+  .recorder-time { font-size: 18px; }
+  .recorder-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .source-switch { align-self: stretch; }
+  .source-switch button { flex: 1; justify-content: center; }
+  .player.inline { width: 100%; }
 }
 
 /* ---------- Accounts & sharing ---------- */

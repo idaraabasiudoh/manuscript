@@ -1,7 +1,6 @@
 import { Maximize2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { renderMarkdown } from '../lib/markdown'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem } from '../lib/supabase'
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes, pad, wordCount } from '../lib/util'
@@ -11,6 +10,8 @@ import { PdfViewer } from './PdfViewer'
 import { ScriptEditor } from './ScriptEditor'
 import { PageStyleTools, ScriptView } from './ScriptView'
 import { TextEditor } from './TextEditor'
+import { AudioPlayer } from './AudioPlayer'
+import { RichText } from './RichText'
 
 type Props = {
   block: Block
@@ -152,7 +153,14 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
           (isEditing ? (
             <>
               {block.kind === 'drama' && <ConvertBanner block={block} onPatch={onPatch} />}
-              <TextEditor kind={block.kind} value={block.body} onChange={(body) => onPatch({ body })} autoFocus />
+              <TextEditor
+                kind={block.kind}
+                value={block.body}
+                onChange={(body) => onPatch({ body })}
+                voices={block.data.voices}
+                onVoice={(path, meta) => onPatch({ data: { ...block.data, voices: { ...block.data.voices, [path]: meta } } })}
+                autoFocus
+              />
             </>
           ) : (
             <TextPreview block={block} onEdit={reading ? undefined : () => onEdit(true)} />
@@ -169,7 +177,6 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
 // ---- Text ---------------------------------------------------------------------
 
 function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
-  const html = useMemo(() => renderMarkdown(block.body, isTextKind(block.kind) ? block.kind : 'text'), [block.body, block.kind])
   if (!block.body.trim())
     return onEdit ? (
       <button className="empty-block" onClick={onEdit}>
@@ -178,7 +185,7 @@ function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
     ) : (
       <p className="muted">Nothing here yet.</p>
     )
-  const md = <div className={`md md-${block.kind}`} onDoubleClick={onEdit} dangerouslySetInnerHTML={{ __html: html }} />
+  const md = <RichText src={block.body} kind={isTextKind(block.kind) ? block.kind : 'text'} voices={block.data.voices} onDoubleClick={onEdit} />
   return block.kind === 'drama' ? <div className="script-page">{md}</div> : md
 }
 
@@ -222,7 +229,7 @@ function ConvertBanner({ block, onPatch }: { block: Block; onPatch: (p: BlockPat
 // ---- Files --------------------------------------------------------------------
 
 function FileBody({ block, reading, onPatch }: { block: Block; reading: boolean; onPatch: (p: BlockPatch) => void }) {
-  const { path, name = 'file', mime = '', size } = block.data
+  const { path, name = 'file', mime = '', size, peaks, duration, voice } = block.data
   if (!path) return <p className="muted">File missing.</p>
   const url = publicUrl(path)
 
@@ -231,11 +238,11 @@ function FileBody({ block, reading, onPatch }: { block: Block; reading: boolean;
       <div className={`file-stage ${mime.split('/')[0]} ${mime === 'application/pdf' ? 'pdf' : ''}`}>
         {mime === 'application/pdf' && <PdfViewer url={url} name={name} />}
         {mime.startsWith('video/') && <video src={url} controls preload="metadata" playsInline />}
-        {mime.startsWith('audio/') && <AudioCard url={url} name={name} />}
+        {mime.startsWith('audio/') && <AudioPlayer src={url} peaks={peaks} duration={duration} voice={voice} />}
         {mime.startsWith('image/') && <img src={url} alt={block.body || name} loading="lazy" />}
       </div>
       <figcaption className="file-bar">
-        <span className="file-type">{mime === 'application/pdf' ? 'PDF' : mime.split('/')[1]?.toUpperCase().replace('MPEG', 'MP3')}</span>
+        <span className="file-type">{fileType(mime, voice)}</span>
         <span className="file-name truncate" title={name}>{name}</span>
         <span className="file-size">{formatBytes(size)}</span>
         <a className="icon-btn sm" href={url} target="_blank" rel="noreferrer" title="Open in new tab" aria-label="Open in new tab">
@@ -260,18 +267,10 @@ function FileBody({ block, reading, onPatch }: { block: Block; reading: boolean;
   )
 }
 
-function AudioCard({ url, name }: { url: string; name: string }) {
-  return (
-    <div className="audio">
-      <div className="audio-wave" aria-hidden>
-        {Array.from({ length: 48 }, (_, i) => (
-          <i key={i} style={{ height: `${18 + Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6)) * 70}%`, backgroundPosition: `${(i / 47) * 100}% 0` }} />
-        ))}
-      </div>
-      <p className="audio-name truncate">{name.replace(/\.[^.]+$/, '')}</p>
-      <audio src={url} controls preload="metadata" />
-    </div>
-  )
+function fileType(mime: string, voice?: boolean) {
+  if (voice) return 'VOICE'
+  if (mime === 'application/pdf') return 'PDF'
+  return ({ 'audio/mpeg': 'MP3', 'audio/mp4': 'M4A', 'audio/wav': 'WAV', 'audio/ogg': 'OGG', 'audio/webm': 'WEBM' } as Record<string, string>)[mime] ?? mime.split('/')[1]?.toUpperCase()
 }
 
 // ---- Links --------------------------------------------------------------------

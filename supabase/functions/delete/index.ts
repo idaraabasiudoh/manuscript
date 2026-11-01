@@ -68,8 +68,9 @@ Deno.serve(async (req) => {
       if (!row) return json({ deleted: 'block', files: 0 })
       const role = await roleOf(req, row.project_id)
       if (role !== 'owner' && role !== 'editor') return json({ error: 'You can only view this project' }, 403)
-      const path = row.data?.path
-      const paths = typeof path === 'string' && path.startsWith(`${row.project_id}/`) ? [path] : []
+      // A file block's own file, plus any voice notes recorded inline in a text block.
+      const candidates = [row.data?.path, ...Object.keys(row.data?.voices ?? {})]
+      const paths = candidates.filter((p): p is string => typeof p === 'string' && p.startsWith(`${row.project_id}/`) && !p.includes('..'))
       await removeFiles(paths)
       const { error: delError } = await admin.from('blocks').delete().eq('id', block)
       if (delError) throw delError

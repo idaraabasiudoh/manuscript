@@ -23,11 +23,13 @@ export type LiteratureKind = 'poetry' | 'drama' | 'prose'
 export type TextKind = 'text' | LiteratureKind
 export type BlockKind = TextKind | 'file' | 'link' | 'resources'
 
-export type FileData = { path: string; name: string; mime: string; size: number }
+export type FileData = { path: string; name: string; mime: string; size: number; duration?: number; peaks?: number[]; voice?: boolean }
+/** Length and waveform of a voice note placed inline in text, keyed by its Storage path. */
+export type VoiceMeta = { duration?: number; peaks?: number[] }
 export type LinkData = { url: string; title?: string; description?: string; image?: string; site?: string }
 export type ResourceItem = { id: string; title: string; url: string; note: string }
 export type ResourcesData = { items: ResourceItem[] }
-export type TextData = { template?: string }
+export type TextData = { template?: string; voices?: Record<string, VoiceMeta> }
 
 export type Block = {
   id: string
@@ -149,9 +151,9 @@ async function invoke<T>(name: string, body: unknown): Promise<T> {
   return data as T
 }
 
-/** File blocks own a Storage object, so they're removed server-side; others go through the RPC. */
+/** File blocks and text with inline voice notes own Storage objects, so they're removed server-side; others go through the RPC. */
 export async function deleteBlock(block: Block) {
-  if (block.kind === 'file') await invoke('delete', { block: block.id })
+  if (block.kind === 'file' || Object.keys(block.data.voices ?? {}).length) await invoke('delete', { block: block.id })
   else await rpc<void>('delete_block', { p_id: block.id })
 }
 
@@ -206,20 +208,30 @@ const ACCEPTED: Record<string, string> = {
   mp4: 'video/mp4',
   m4v: 'video/mp4',
   mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+  webm: 'audio/webm',
   png: 'image/png',
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
 }
-export const ACCEPT_ATTR = '.pdf,.mp4,.m4v,.mp3,.png,.jpg,.jpeg,.gif,.webp,application/pdf,video/mp4,audio/mpeg,image/*'
+export const ACCEPT_ATTR = '.pdf,.mp4,.m4v,.mp3,.m4a,.wav,.ogg,.oga,.webm,.png,.jpg,.jpeg,.gif,.webp,application/pdf,video/mp4,audio/*,image/*'
 
 export function mimeFor(file: File): string | null {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  // WebM can hold video too; only audio WebM (voice notes) is accepted.
+  if (ext === 'webm' && file.type.startsWith('video/')) return null
   const fromExt = ACCEPTED[ext]
   if (fromExt) return fromExt
-  if (file.type === 'audio/mp3') return 'audio/mpeg'
-  return Object.values(ACCEPTED).includes(file.type) ? file.type : null
+  const type = file.type.split(';')[0]
+  if (type === 'audio/mp3') return 'audio/mpeg'
+  if (type === 'audio/x-m4a') return 'audio/mp4'
+  if (type === 'audio/x-wav' || type === 'audio/wave') return 'audio/wav'
+  return Object.values(ACCEPTED).includes(type) ? type : null
 }
 
 /** Uploads with XHR so we get progress events (supabase-js doesn't expose them). */
@@ -230,7 +242,7 @@ export async function uploadFile(project: string, file: File, onProgress: (fract
 
 function uploadWithToken(project: string, file: File, token: string, onProgress: (fraction: number) => void): Promise<FileData> {
   const mime = mimeFor(file)
-  if (!mime) return Promise.reject(new Error('Only PDF, MP4, MP3 and images are supported'))
+  if (!mime) return Promise.reject(new Error('Only PDF, MP4 video, audio (MP3, M4A, WAV, OGG, WebM) and images are supported'))
   if (file.size > MAX_UPLOAD) return Promise.reject(new Error('Files must be 50 MB or smaller'))
 
   const safe = file.name.normalize('NFKD').replace(/[^\w.-]+/g, '-').replace(/-+/g, '-').slice(-80) || 'file'
