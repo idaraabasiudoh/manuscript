@@ -164,7 +164,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
           <label className="field">
             <span className="field-label">Web address</span>
             <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=…" autoFocus inputMode="url" />
-            <span className="hint">YouTube, Vimeo, Loom, Spotify and Instagram links play right in the page. Other links show a preview card.</span>
+            <span className="hint">YouTube, Vimeo, Loom, Spotify, Instagram and TikTok links play right in the page. Other links show a preview card.</span>
           </label>
         )}
 

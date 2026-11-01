@@ -39,6 +39,7 @@ const OEMBED: [RegExp, string][] = [
   [/(^|\.)vimeo\.com$/, 'https://vimeo.com/api/oembed.json?url='],
   [/^open\.spotify\.com$/, 'https://open.spotify.com/oembed?url='],
   [/(^|\.)loom\.com$/, 'https://www.loom.com/v1/oembed?url='],
+  [/(^|\.)tiktok\.com$/, 'https://www.tiktok.com/oembed?url='],
 ]
 
 async function oembed(target: URL) {
@@ -49,7 +50,10 @@ async function oembed(target: URL) {
   const o = await res.json()
   return {
     url: target.href,
-    title: o.title ?? target.hostname,
+    title:
+      o.title ||
+      (o.author_name ? `${o.provider_name ?? 'Post'} by ${o.author_name}` : null) ||
+      (target.pathname.match(/^\/(@[\w.-]+)\//) ? `${o.provider_name ?? 'Post'} by ${target.pathname.match(/^\/(@[\w.-]+)\//)![1]}` : target.hostname),
     description: o.author_name ? `by ${o.author_name}` : '',
     image: o.thumbnail_url ?? '',
     site: o.provider_name ?? target.hostname.replace(/^www\./, ''),
@@ -57,10 +61,11 @@ async function oembed(target: URL) {
 }
 
 // Share links that redirect to the real page (players need the real URL).
-const SHORT_LINKS = /^(spotify\.link|spoti\.fi|instagr\.am|youtu\.be\.?)$/
+const SHORT_LINKS = /^(spotify\.link|spoti\.fi|instagr\.am|vm\.tiktok\.com|vt\.tiktok\.com|youtu\.be\.?)$/
 
 async function resolveShortLink(target: URL) {
-  if (!SHORT_LINKS.test(target.hostname) || target.hostname.startsWith('youtu')) return target
+  const tiktokShare = /(^|\.)tiktok\.com$/.test(target.hostname) && target.pathname.startsWith('/t/')
+  if ((!SHORT_LINKS.test(target.hostname) && !tiktokShare) || target.hostname.startsWith('youtu')) return target
   const res = await fetch(target, { redirect: 'follow', signal: AbortSignal.timeout(6000), headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ManuscriptBot/1.0)' } })
   res.body?.cancel().catch(() => {})
   let final = new URL(res.url || target.href)

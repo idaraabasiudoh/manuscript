@@ -276,9 +276,9 @@ function AudioCard({ url, name }: { url: string; name: string }) {
 
 // ---- Links --------------------------------------------------------------------
 
-export type Embed = { src: string; kind: 'video' | 'audio' | 'instagram'; height?: number; label: string }
+export type Embed = { src: string; kind: 'video' | 'audio' | 'instagram' | 'tiktok'; height?: number; label: string }
 
-/** Players we can show inline for a link: YouTube, Vimeo, Loom, Spotify and Instagram. */
+/** Players we can show inline for a link: YouTube, Vimeo, Loom, Spotify, Instagram and TikTok. */
 export function embedFor(url: string): Embed | null {
   try {
     const u = new URL(url)
@@ -300,6 +300,11 @@ export function embedFor(url: string): Embed | null {
         const compact = m[1] === 'track' || m[1] === 'episode'
         return { src: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, kind: 'audio', height: compact ? 152 : 352, label: 'Spotify' }
       }
+    }
+    // TikTok: /@user/video/123, /@user/photo/123, or an embed/player URL.
+    if (host === 'tiktok.com') {
+      const id = u.pathname.match(/^\/@[\w.-]+\/(?:video|photo)\/(\d+)/)?.[1] ?? u.pathname.match(/^\/(?:embed(?:\/v2)?|player\/v1)\/(\d+)/)?.[1]
+      if (id) return { src: `https://www.tiktok.com/player/v1/${id}?music_info=1&description=1&rel=0`, kind: 'tiktok', label: 'TikTok' }
     }
     // Instagram: /p/…, /reel/…, /reels/…, /tv/…, optionally under a /username/ prefix.
     if (host === 'instagram.com') {
@@ -354,14 +359,20 @@ export function LinkCard({ link }: { link: LinkData }) {
   return (
     <div className={`link ${embed ? `has-${embed.kind}` : ''}`}>
       {embed?.kind === 'instagram' && <InstagramFrame embed={embed} title={title} />}
-      {embed && embed.kind !== 'instagram' && (
+      {embed?.kind === 'tiktok' && (
+        <div className="link-embed tiktok">
+          <iframe src={embed.src} title={title} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture; web-share" allowFullScreen loading="lazy" />
+        </div>
+      )}
+      {embed && embed.kind !== 'instagram' && embed.kind !== 'tiktok' && (
         <div className={`link-embed ${embed.kind}`} style={embed.height ? { height: embed.height } : undefined}>
           <iframe src={embed.src} title={title} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowFullScreen loading="lazy" />
         </div>
       )}
       {compact ? (
         <a className="link-open" href={link.url} target="_blank" rel="noopener noreferrer">
-          <External width={13} height={13} /> Open in {embed.label.replace(/ (post|reel)$/, '')}
+          <External width={13} height={13} />
+          <span className="link-open-label">Open in {embed.label.replace(/ (post|reel)$/, '')}</span>
           {link.title && link.title !== link.url && link.title !== embed.label && <span className="link-open-title truncate">· {link.title}</span>}
         </a>
       ) : (
