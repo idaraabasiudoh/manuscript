@@ -171,7 +171,6 @@ export function AudioPlayer({ src, name, peaks, duration: stored, variant = 'car
       )}
       <div className="player-row">
         <button type="button" className="player-play" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} disabled={failed}>
-          <span className="player-ring" aria-hidden />
           {playing ? <Pause size={variant === 'card' ? 20 : 15} fill="currentColor" strokeWidth={0} /> : <Play size={variant === 'card' ? 20 : 15} fill="currentColor" strokeWidth={0} className="player-play-icon" />}
         </button>
         <div

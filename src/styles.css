@@ -1155,9 +1155,6 @@ a.res-title svg { color: var(--muted); }
 .player-play svg { position: relative; z-index: 1; }
 .player-play-icon { margin-left: 2px; }
 .player.playing .player-play { background: var(--ai-gradient); color: #fff; }
-.player-ring { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
-.player.playing .player-ring { animation: player-ring 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; background: var(--ai-gradient); }
-@keyframes player-ring { 0% { transform: scale(1); opacity: 0.45; } 100% { transform: scale(1.55); opacity: 0; } }
 
 .player-wave { position: relative; display: flex; align-items: center; gap: 3px; flex: 1 1 0; min-width: 48px; overflow: hidden; height: 56px; cursor: pointer; touch-action: none; outline: 0; border-radius: 10px; }
 .player-wave:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--line-strong); }
