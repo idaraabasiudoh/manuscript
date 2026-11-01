@@ -1,1 +1,16 @@
-{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+{
+  "rewrites": [
+    {
+      "source": "/:id([a-z0-9][a-z0-9-]{1,46}[a-z0-9])/:block?",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|facebot|twitterbot|whatsapp|telegrambot|slackbot|slack-imgproxy|discordbot|linkedinbot|skypeuripreview|iframely|embedly|pinterest|redditbot|applebot|googlebot|bingbot|vkshare|snapchat|bot|crawler|spider|preview).*"
+        }
+      ],
+      "destination": "/api/page?id=:id"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
