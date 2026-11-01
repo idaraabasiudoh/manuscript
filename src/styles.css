@@ -1019,7 +1019,9 @@ a.res-title svg { color: var(--muted); }
 }
 .pg-swatch-chip svg { position: absolute; top: 6px; right: 6px; }
 .pg-swatch:hover .pg-swatch-chip { transform: translateY(-1px); }
-.pg-swatch.on .pg-swatch-chip { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--ai-2); }
+/* Selected: a ring drawn inside the swatch (an outer ring gets clipped by the scrolling grid) */
+.pg-swatch.on .pg-swatch-chip { box-shadow: inset 0 0 0 2.5px var(--ai-2), inset 0 0 0 4.5px var(--bg); }
+.pg-swatch.on .pg-swatch-chip svg { padding: 2px; box-sizing: content-box; border-radius: 50%; background: var(--ai-2); color: #fff; }
 .pg-swatch-name { font-size: 11.5px; font-weight: 500; text-align: center; }
 .pg-swatch.on .pg-swatch-name { color: var(--text); font-weight: 600; }
 .pg-titlepage { padding-top: 28px !important; }
