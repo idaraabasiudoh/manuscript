@@ -1136,7 +1136,7 @@ a.res-title svg { color: var(--muted); }
 }
 
 /* ---------- Audio: player, recorder, inline voice notes ---------- */
-.player { --bar-off: color-mix(in srgb, var(--text) 18%, transparent); --bar-ghost: color-mix(in srgb, var(--text) 38%, transparent); position: relative; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.player { container: player / inline-size; --bar-off: color-mix(in srgb, var(--text) 18%, transparent); --bar-ghost: color-mix(in srgb, var(--text) 38%, transparent); position: relative; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .player.card { padding: 22px 22px 20px; }
 .player-head { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; max-width: 100%; }
 .player-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; background: var(--bg); color: var(--text-2); font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
@@ -1157,15 +1157,14 @@ a.res-title svg { color: var(--muted); }
 .player.playing .player-ring { animation: player-ring 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; background: var(--ai-gradient); }
 @keyframes player-ring { 0% { transform: scale(1); opacity: 0.45; } 100% { transform: scale(1.55); opacity: 0; } }
 
-.player-wave { position: relative; display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; height: 56px; cursor: pointer; touch-action: none; outline: 0; border-radius: 10px; }
+.player-wave { position: relative; display: flex; align-items: center; gap: 3px; flex: 1 1 0; min-width: 48px; overflow: hidden; height: 56px; cursor: pointer; touch-action: none; outline: 0; border-radius: 10px; }
 .player-wave:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--line-strong); }
 .player-wave i {
-  flex: 1; min-width: 2px; border-radius: 999px; background: var(--bar-off); transform-origin: center;
+  flex: 1 1 0; min-width: 0; border-radius: 999px; background: var(--bar-off); transform-origin: center;
   transition: background-color 0.2s, height 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .player-wave i.ghost { background: var(--bar-ghost); }
-.player-wave i.played, .player-wave i.edge { background-image: var(--ai-gradient); background-size: 6400% 100%; }
-.player.inline .player-wave i.played, .player.inline .player-wave i.edge { background-size: 3600% 100%; }
+.player-wave i.played, .player-wave i.edge { background-image: var(--ai-gradient); }
 .player-wave i.edge { opacity: 0.65; }
 .player-wave i.live { animation: player-bar 0.75s ease-in-out infinite alternate; }
 @keyframes player-bar { 0% { transform: scaleY(0.7); } 100% { transform: scaleY(1.18); } }
@@ -1207,15 +1206,22 @@ a.res-title svg { color: var(--muted); }
 .md-audio-ref { font-family: var(--sans); font-size: 0.9em; color: var(--muted); }
 .script-page .md-audio { display: flex; justify-content: center; }
 
+/* The player sizes itself to its own width, wherever it sits (block, dialog, editor, full screen). */
 @container blockbody (max-width: 440px) {
   .player.card { padding: 18px 16px 16px; }
+}
+@container player (max-width: 440px) {
   .player.card .player-play { width: 44px; height: 44px; }
   .player.card .player-wave { height: 44px; gap: 2px; }
+  .player.card .player-row { gap: 12px; }
   .player-total { display: none; }
 }
-@container blockbody (max-width: 320px) {
+@container player (max-width: 260px) {
   .player-speed { display: none; }
-  .player.card .player-row { gap: 10px; }
+  .player-row { gap: 10px; }
+  .player.inline .player-row { gap: 8px; }
+  .player.inline .player-wave { gap: 1.5px; }
+  .player-name { font-size: 15px; }
 }
 
 /* Recorder */
@@ -1232,8 +1238,8 @@ a.res-title svg { color: var(--muted); }
 .recorder-mic:disabled { opacity: 0.6; cursor: progress; }
 .recorder-mic svg { position: relative; z-index: 1; }
 .recorder.recording .recorder-mic, .recorder.paused .recorder-mic { background: var(--danger); }
-.recorder-live { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; height: 56px; }
-.recorder-live i { flex: 1; min-width: 2px; height: 100%; border-radius: 999px; background: var(--ai-gradient); background-size: 4400% 100%; transform-origin: center; transition: transform 0.09s linear; }
+.recorder-live { display: flex; align-items: center; gap: 3px; flex: 1 1 0; min-width: 0; overflow: hidden; height: 56px; }
+.recorder-live i { flex: 1 1 0; min-width: 0; height: 100%; border-radius: 999px; background: var(--ai-gradient); background-size: 4400% 100%; transform-origin: center; transition: transform 0.09s linear; }
 .recorder.idle .recorder-live i, .recorder.asking .recorder-live i, .recorder.error .recorder-live i { background: var(--line-strong); }
 .recorder.paused .recorder-live { opacity: 0.45; }
 .recorder-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; min-width: 72px; }
@@ -1244,12 +1250,13 @@ a.res-title svg { color: var(--muted); }
 .recorder-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .recorder-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
 .recorder-error { margin: 0; }
-.recorder .player.card { padding: 18px 14px 4px; }
+.recorder .player.card { padding: 18px 14px 4px; width: 100%; }
 
 .editor-recorder { margin: 10px 0 4px; }
 .editor-recorder .hint { margin: 8px 0 0 6px; }
 .voice-tool { display: inline-flex; align-items: center; gap: 6px; }
 .source-switch { align-self: flex-start; }
+.source-switch button { white-space: nowrap; }
 
 @media (max-width: 520px) {
   .recorder { padding: 14px; }

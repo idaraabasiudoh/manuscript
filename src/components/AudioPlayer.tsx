@@ -30,7 +30,16 @@ export function AudioPlayer({ src, name, peaks, duration: stored, variant = 'car
   const [hover, setHover] = useState<number | null>(null)
   const [scrubbing, setScrubbing] = useState(false)
   const [failed, setFailed] = useState(false)
-  const bars = variant === 'card' ? 64 : 36
+  // Bars follow the waveform's real width (about one per 6px), so it fits a phone and stays crisp full screen.
+  const [waveWidth, setWaveWidth] = useState(0)
+  useEffect(() => {
+    const el = wave.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([entry]) => setWaveWidth(entry.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const bars = waveWidth ? Math.max(12, Math.min(variant === 'card' ? 160 : 80, Math.floor(waveWidth / (variant === 'card' ? 6 : 5)))) : variant === 'card' ? 48 : 28
   const heights = useMemo(() => (peaks?.length ? resample(peaks, bars) : fallbackPeaks(src, bars)), [peaks, src, bars])
 
   useEffect(() => setLength((l) => l ?? stored), [stored])
@@ -197,7 +206,7 @@ export function AudioPlayer({ src, name, peaks, duration: stored, variant = 'car
               <i
                 key={i}
                 className={`${state} ${near ? 'live' : ''}`}
-                style={{ height: `${h * 100}%`, animationDelay: near ? `${-(i % 5) * 0.11}s` : undefined, backgroundPosition: `${(i / (bars - 1)) * 100}% 0` }}
+                style={{ height: `${h * 86}%`, animationDelay: near ? `${-(i % 5) * 0.11}s` : undefined, backgroundSize: `${bars * 100}% 100%`, backgroundPosition: `${(i / (bars - 1)) * 100}% 0` }}
               />
             )
           })}

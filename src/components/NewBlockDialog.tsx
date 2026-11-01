@@ -158,10 +158,10 @@ export function NewBlockDialog({ project, kind, onCreate, onClose, record }: Pro
         {kind === 'file' && (
           <div className="segmented source-switch" role="tablist" aria-label="Add a file by">
             <button type="button" role="tab" aria-selected={source === 'upload'} className={source === 'upload' ? 'on' : ''} onClick={() => setSource('upload')} disabled={busy}>
-              <Upload width={14} height={14} /> Upload a file
+              <Upload width={14} height={14} /> Upload file
             </button>
             <button type="button" role="tab" aria-selected={source === 'record'} className={source === 'record' ? 'on' : ''} onClick={() => (setSource('record'), !titleTouched && setTitle('Voice note'))} disabled={busy}>
-              <Mic size={14} /> Record voice note
+              <Mic size={14} /> Record audio
             </button>
           </div>
         )}
