@@ -362,6 +362,49 @@ export function ProjectPage() {
     return i === -1 ? els.length : i
   }
 
+  // Dragging near the top or bottom edge scrolls the page, faster the closer you get. The page
+  // scrolls inside .doc-scroll (not the window), so the browser's own drag-scrolling never kicks in.
+  // Listening on the window keeps it going when the pointer is over the toolbar above the page.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const ZONE = 110
+    const MAX = 1400 // px per second at the very edge
+    let y: number | null = null
+    let lastOver = 0
+    let lastFrame = 0
+    let raf = 0
+    const step = (now: number) => {
+      raf = 0
+      const el = scrollRef.current
+      // dragover fires every ~50ms while a drag is held, even standing still; silence means it ended.
+      if (!el || y === null || now - lastOver > 160) return void (y = null)
+      const dt = Math.min(0.05, (now - (lastFrame || now)) / 1000)
+      lastFrame = now
+      const box = el.getBoundingClientRect()
+      const top = Math.max(box.top, 0)
+      const bottom = Math.min(box.bottom, window.innerHeight)
+      const speed = (depth: number) => MAX * Math.min(1, depth / ZONE) ** 2 * dt
+      if (y < top + ZONE) el.scrollTop -= speed(top + ZONE - y)
+      else if (y > bottom - ZONE) el.scrollTop += speed(y - (bottom - ZONE))
+      raf = requestAnimationFrame(step)
+    }
+    const onOver = (e: globalThis.DragEvent) => {
+      y = e.clientY
+      lastOver = performance.now()
+      if (!raf) (lastFrame = 0), (raf = requestAnimationFrame(step))
+    }
+    const stop = () => (y = null)
+    window.addEventListener('dragover', onOver)
+    window.addEventListener('drop', stop)
+    window.addEventListener('dragend', stop)
+    return () => {
+      window.removeEventListener('dragover', onOver)
+      window.removeEventListener('drop', stop)
+      window.removeEventListener('dragend', stop)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
   const onDragOver = (e: DragEvent) => {
     if (reading || fullBlock || projectRef.current?.role === 'viewer') return
     const kind = dragKind(e)
@@ -668,7 +711,7 @@ export function ProjectPage() {
           </button>
         </header>
 
-        <div className="doc-scroll" onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+        <div className="doc-scroll" ref={scrollRef} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
           {status === 'loading' || !project ? (
             <div className="doc">
               <div className="doc-head">
