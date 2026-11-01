@@ -1,5 +1,5 @@
 import { Maximize2 } from 'lucide-react'
-import { useEffect, useRef, useState, type DragEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem } from '../lib/supabase'
 import { KINDS, TEMPLATES } from '../lib/templates'
@@ -127,14 +127,7 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
           <h2 className="block-title static">{block.title || 'Untitled'}</h2>
         ) : (
           <div className="block-title-row">
-            <input
-              className="block-title"
-              value={block.title}
-              placeholder="Name this block"
-              onChange={(e) => onPatch({ title: e.target.value })}
-              aria-label="Block name"
-              maxLength={200}
-            />
+            <TitleInput value={block.title} onChange={(title) => onPatch({ title })} />
             {block.kind === 'drama' && isScript(block.data.script) && (
               <PageStyleTools
                 script={block.data.script}
@@ -171,6 +164,42 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
         {block.kind === 'resources' && <ResourcesBody block={block} editing={isEditing} onPatch={onPatch} />}
       </div>
     </article>
+  )
+}
+
+/** The block's name: one line of text that wraps and grows instead of being cut off. */
+function TitleInput({ value, onChange }: { value: string; onChange: (title: string) => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const fit = () => {
+      el.style.height = 'auto'
+      el.style.height = `${el.scrollHeight}px`
+    }
+    fit()
+    // Refit when the block gets narrower or wider (not on our own height changes).
+    let width = el.clientWidth
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth !== width) (width = el.clientWidth), fit()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [value])
+  return (
+    <textarea
+      ref={ref}
+      className="block-title"
+      rows={1}
+      value={value}
+      placeholder="Name this block"
+      // Still a single line: pasted line breaks become spaces, and Enter just finishes editing.
+      onChange={(e) => onChange(e.target.value.replace(/\s*\n+\s*/g, ' '))}
+      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), e.currentTarget.blur())}
+      aria-label="Block name"
+      maxLength={200}
+      spellCheck
+    />
   )
 }
 
