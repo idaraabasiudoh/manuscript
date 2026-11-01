@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Minus, Plus, RotateCcw, ZoomIn } from 'lucide-react'
 
-/** Full-screen view settings: how far the block stretches across the screen, and how big its text is. */
+/** Full-screen view settings: the block's width as a % of the screen, and its text size. */
 export type FullView = { width: number; text: number }
 
-export const DEFAULT_VIEW: FullView = { width: 30, text: 1 }
+export const MIN_WIDTH = 20
+export const DEFAULT_VIEW: FullView = { width: 60, text: 1 }
 export const TEXT_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8]
 
 export function ZoomControl({ view, onChange }: { view: FullView; onChange: (view: FullView) => void }) {
@@ -36,20 +37,20 @@ export function ZoomControl({ view, onChange }: { view: FullView; onChange: (vie
         <div className="zoom-panel" role="dialog" aria-label="Zoom and width">
           <label className="zoom-row">
             <span className="zoom-label">
-              Width <b>{view.width >= 100 ? 'Full' : view.width <= 0 ? 'Narrow' : `${view.width}%`}</b>
+              Width <b>{view.width}% of screen</b>
             </span>
             <input
               type="range"
-              min={0}
+              min={MIN_WIDTH}
               max={100}
-              step={5}
+              step={1}
               value={view.width}
               onChange={(e) => onChange({ ...view, width: Number(e.target.value) })}
               aria-label="Width"
             />
             <span className="zoom-ends">
-              <span>Narrow</span>
-              <span>Edge to edge</span>
+              <span>{MIN_WIDTH}%</span>
+              <span>100%</span>
             </span>
           </label>
           <div className="zoom-row">

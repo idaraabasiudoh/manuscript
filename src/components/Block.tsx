@@ -9,7 +9,7 @@ import { ArrowUp, Check, Close, Download, External, Grip, KindIcon, Pencil, Plus
 import { isScript, parseScript, toText, type Script } from '../lib/script'
 import { PdfViewer } from './PdfViewer'
 import { ScriptEditor } from './ScriptEditor'
-import { ScriptView } from './ScriptView'
+import { PageStyleTools, ScriptView } from './ScriptView'
 import { TextEditor } from './TextEditor'
 
 type Props = {
@@ -125,14 +125,22 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
         {reading ? (
           <h2 className="block-title static">{block.title || 'Untitled'}</h2>
         ) : (
-          <input
-            className="block-title"
-            value={block.title}
-            placeholder="Name this block"
-            onChange={(e) => onPatch({ title: e.target.value })}
-            aria-label="Block name"
-            maxLength={200}
-          />
+          <div className="block-title-row">
+            <input
+              className="block-title"
+              value={block.title}
+              placeholder="Name this block"
+              onChange={(e) => onPatch({ title: e.target.value })}
+              aria-label="Block name"
+              maxLength={200}
+            />
+            {block.kind === 'drama' && isScript(block.data.script) && (
+              <PageStyleTools
+                script={block.data.script}
+                onChange={(next) => onPatch({ data: { ...block.data, script: next }, body: toText(next) })}
+              />
+            )}
+          </div>
         )}
       </header>
 
@@ -178,15 +186,7 @@ function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
 
 function ScriptBody({ block, script, editing, onPatch, onEdit }: { block: Block; script: Script; editing: boolean; onPatch: (p: BlockPatch) => void; onEdit?: () => void }) {
   const save = (next: Script) => onPatch({ data: { ...block.data, script: next }, body: toText(next) })
-  if (!editing)
-    return (
-      <ScriptView
-        script={script}
-        onEdit={onEdit}
-        onTheme={onEdit ? (theme) => save({ ...script, theme }) : undefined}
-        onFont={onEdit ? (font) => save({ ...script, font }) : undefined}
-      />
-    )
+  if (!editing) return <ScriptView script={script} onEdit={onEdit} />
   const original = typeof block.data.originalText === 'string' ? block.data.originalText : undefined
   const revert =
     original === undefined

@@ -3,17 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { characterVars, loadPageFont, PAGE_FONTS, PAGE_THEMES, pageFont, pageTheme, sceneHeading, type PageFont, type Script } from '../lib/script'
 
 /** A structured script laid out like a typed screenplay page. */
-export function ScriptView({
-  script,
-  onEdit,
-  onTheme,
-  onFont,
-}: {
-  script: Script
-  onEdit?: () => void
-  onTheme?: (theme: string) => void
-  onFont?: (font: string) => void
-}) {
+export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => void }) {
   const { meta, cast, elements } = script
   const byId = (id: string) => cast.find((c) => c.id === id)
   const hasTitle = meta.title || meta.author || meta.format || meta.genre || meta.logline
@@ -42,12 +32,6 @@ export function ScriptView({
       }
       onDoubleClick={onEdit}
     >
-      {(onTheme || onFont) && (
-        <div className="pg-tools" onDoubleClick={(e) => e.stopPropagation()}>
-          {onFont && <FontPicker value={font.id} onChange={onFont} />}
-          {onTheme && <ThemePicker value={theme.id} onChange={onTheme} />}
-        </div>
-      )}
       {hasTitle && (
         <header className="pg-titlepage">
           {meta.title && <h1>{meta.title}</h1>}
@@ -120,7 +104,17 @@ export function ScriptView({
   )
 }
 
-/** A round button in the page corner that opens a small panel; closes on outside click or Escape. */
+/** Font and theme buttons for a script's reading page; shown on the block's title row. */
+export function PageStyleTools({ script, onChange }: { script: Script; onChange: (next: Script) => void }) {
+  return (
+    <div className="pg-tools">
+      <FontPicker value={pageFont(script.font).id} onChange={(font) => onChange({ ...script, font })} />
+      <ThemePicker value={pageTheme(script.theme).id} onChange={(theme) => onChange({ ...script, theme })} />
+    </div>
+  )
+}
+
+/** A round button that opens a small panel; closes on outside click or Escape. */
 function PagePopover({ label, icon, children }: { label: string; icon: ReactNode; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)

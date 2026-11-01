@@ -5,7 +5,7 @@ import { BlockView } from '../components/Block'
 import { Chat } from '../components/Chat'
 import { Close, Eye, KindIcon, Logo, Menu, Pencil, Plus, Share, Trash, ThemeToggle } from '../components/Icons'
 import { NewBlockDialog, type NewBlock } from '../components/NewBlockDialog'
-import { DEFAULT_VIEW, ZoomControl, type FullView } from '../components/ZoomControl'
+import { DEFAULT_VIEW, MIN_WIDTH, ZoomControl, type FullView } from '../components/ZoomControl'
 import {
   addBlock,
   deleteBlock,
@@ -71,10 +71,13 @@ export function ProjectPage() {
   const fullBlock = blockId ? blocks.find((b) => b.id.startsWith(blockId.toLowerCase())) : undefined
   const lastFull = useRef<string>(undefined)
   // Full-screen width and text size, remembered per browser.
-  const [fullView, setFullView] = useState<FullView>(() => ({ ...DEFAULT_VIEW, ...load<Partial<FullView>>('fullview', {}) }))
+  const [fullView, setFullView] = useState<FullView>(() => {
+    const v = { ...DEFAULT_VIEW, ...load<Partial<FullView>>('fullview-pct', {}) }
+    return { ...v, width: Math.min(100, Math.max(MIN_WIDTH, v.width)) }
+  })
   const changeFullView = (v: FullView) => {
     setFullView(v)
-    save('fullview', v)
+    save('fullview-pct', v)
   }
 
   const flash = useCallback((msg: string) => {
@@ -606,7 +609,7 @@ export function ProjectPage() {
           ) : blockId ? (
             fullBlock ? (
               <div
-                className={`doc doc-full ${fullView.width >= 100 ? 'edge' : ''}`}
+                className="doc doc-full"
                 style={{ '--full-w': fullView.width / 100, '--full-text': fullView.text } as CSSProperties}
               >
                 <BlockView

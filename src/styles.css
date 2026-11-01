@@ -388,14 +388,12 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 .workspace.fullscreen .sidebar, .workspace.fullscreen .sidebar-scrim { display: none; }
 .return-btn { flex-shrink: 0; height: 38px; padding: 0 16px 0 12px; gap: 6px; }
 .doc-full {
-  --full-w: 0.3; --full-text: 1;
-  /* 0 = comfortable reading width, 1 = edge to edge */
-  max-width: calc(760px + (100% - 760px) * var(--full-w));
-  padding-top: clamp(12px, 3vh, 28px);
-  padding-inline: calc(var(--gutter) * (1 - var(--full-w)) + 12px * var(--full-w));
-  transition: max-width 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+  --full-w: 0.6; --full-text: 1;
+  /* The slider is a straight percentage of the screen: 100% fills it (with a small margin), 50% is half. */
+  max-width: none; width: max(min(240px, 100%), calc(var(--full-w) * 100%));
+  padding: clamp(12px, 3vh, 28px) 12px 140px;
+  transition: width 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-.doc-full.edge { max-width: none; }
 .doc-full .block-body { zoom: var(--full-text); }
 .doc-full .block.editing { margin-inline: 0; }
 
@@ -986,7 +984,9 @@ a.res-title svg { color: var(--muted); }
 .script-page.dark-page .has-ch { --ch-text-l: 72%; }
 .script-page.dark-page ::selection { background: color-mix(in srgb, var(--ink) 30%, transparent); }
 
-.pg-tools { position: absolute; top: 12px; right: 12px; z-index: 3; display: flex; gap: 6px; font-family: var(--sans); font-style: normal; }
+.block-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.block-title-row .block-title { flex: 1; min-width: 0; }
+.pg-tools { position: relative; z-index: 4; display: flex; flex-shrink: 0; gap: 6px; font-family: var(--sans); font-style: normal; }
 .pg-pop { position: static; } /* panels anchor to .pg-tools so they line up with the page corner */
 .pg-font-list { display: flex; flex-direction: column; gap: 12px; max-height: min(440px, 60dvh); overflow: auto; padding: 2px; }
 .pg-font-group { display: flex; flex-direction: column; gap: 4px; }
@@ -1001,10 +1001,10 @@ a.res-title svg { color: var(--muted); }
 .pg-font-line { font-size: 12.5px; color: var(--muted); letter-spacing: 0.02em; }
 .pg-font-check { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ai-1); }
 .pg-theme-btn {
-  display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%;
-  background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink-2); transition: background 0.15s, color 0.15s, opacity 0.15s;
+  display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%;
+  background: var(--surface); color: var(--text-2); transition: background 0.15s, color 0.15s;
 }
-.pg-theme-btn:hover, .pg-theme-btn[aria-expanded='true'] { background: color-mix(in srgb, var(--ink) 14%, transparent); color: var(--ink); }
+.pg-theme-btn:hover, .pg-theme-btn[aria-expanded='true'] { background: var(--surface-2); color: var(--text); }
 .pg-theme-panel {
   position: absolute; top: calc(100% + 8px); right: 0; width: min(320px, calc(100vw - 48px)); padding: 14px;
   border-radius: 20px; background: var(--bg); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow);
@@ -1024,7 +1024,6 @@ a.res-title svg { color: var(--muted); }
 .pg-swatch.on .pg-swatch-chip svg { padding: 2px; box-sizing: content-box; border-radius: 50%; background: var(--ai-2); color: #fff; }
 .pg-swatch-name { font-size: 11.5px; font-weight: 500; text-align: center; }
 .pg-swatch.on .pg-swatch-name { color: var(--text); font-weight: 600; }
-.pg-titlepage { padding-top: 28px !important; }
 .script-page p { margin: 0; }
 
 .pg-titlepage { padding: 12px 0 40px; margin-bottom: 36px; text-align: center; border-bottom: 1px solid var(--rule); }
@@ -1153,6 +1152,9 @@ a.res-title svg { color: var(--muted); }
   .toolbar { gap: 6px; height: auto; min-height: 76px; padding: calc(env(safe-area-inset-top) + 28px) 10px 10px; }
   .toolbar .btn.primary { width: 40px; padding: 0; }
   .return-btn { width: 40px; padding: 0; }
+  .pg-theme-panel { position: fixed; top: auto; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); width: auto; z-index: 70; transform-origin: bottom center; animation: sheet 0.22s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .pg-theme-grid, .pg-font-list { max-height: min(56dvh, 460px); }
+  body:has(.pg-theme-panel) .chat-fab, body:has(.zoom-panel) .chat-fab { display: none; }
   .zoom-panel { position: fixed; top: calc(env(safe-area-inset-top) + 80px); left: 12px; right: 12px; width: auto; transform-origin: top center; }
   .doc-full .block { min-height: calc(100dvh - 120px); }
   .segmented button { padding: 0 10px; }
