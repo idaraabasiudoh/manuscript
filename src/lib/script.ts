@@ -101,6 +101,54 @@ export function characterVars(c: Pick<Character, 'color'> | undefined): Record<s
   return { '--ch-h': hue.toFixed(1), '--ch-s': `${sat}%`, '--ch-shift': `${shift}%` }
 }
 
+// ---- @mentions in action and note text --------------------------------------------
+// A mention is stored as plain text, "@David", and coloured wherever the name matches a cast member.
+
+/** "MARY JANE" → "Mary Jane": how a mention reads inside prose. */
+export const mentionName = (name: string) => name.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase())
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Matches @Name for every named cast member, longest names first so "@Mary Jane" beats "@Mary". */
+function mentionRe(cast: Character[]) {
+  const names = cast.map((c) => c.name.trim()).filter(Boolean).sort((a, b) => b.length - a.length)
+  return names.length ? new RegExp(`@(${names.map(escapeRe).join('|')})(?![\\p{L}\\p{N}_])`, 'giu') : null
+}
+
+export type TextPart = { text: string; character?: Character }
+
+/** Splits text into plain runs and mentions. Mention parts keep the "@" so they line up with the source. */
+export function splitMentions(text: string, cast: Character[]): TextPart[] {
+  const re = mentionRe(cast)
+  if (!re || !text.includes('@')) return [{ text }]
+  const parts: TextPart[] = []
+  let last = 0
+  for (const m of text.matchAll(re)) {
+    const character = cast.find((c) => c.name.trim().toLowerCase() === m[1].toLowerCase())
+    if (m.index > last) parts.push({ text: text.slice(last, m.index) })
+    parts.push({ text: m[0], character })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) })
+  return parts
+}
+
+/** Plain-text form of a mention: the name without its "@". */
+export const stripMentions = (text: string, cast: Character[]) => {
+  const re = mentionRe(cast)
+  return re ? text.replace(re, (_, name) => name) : text
+}
+
+/** After a character is renamed, rewrite their mentions in action and note text. */
+export function renameMentions(elements: ScriptElement[], from: string, to: string, cast: Character[]): ScriptElement[] {
+  const old = from.trim()
+  const next = to.trim()
+  // Skip half-typed or clashing names so we never merge a mention into someone else's.
+  if (!old || !next || cast.some((c) => c.name.trim().toLowerCase() === next.toLowerCase())) return elements
+  const re = new RegExp(`@${escapeRe(old)}(?![\\p{L}\\p{N}_])`, 'giu')
+  return elements.map((e) => ((e.type === 'action' || e.type === 'note') && e.text.search(re) !== -1 ? { ...e, text: e.text.replace(re, `@${mentionName(next)}`) } : e))
+}
+
 export const uid = () => crypto.randomUUID().slice(0, 8)
 
 export function emptyScript(meta: Partial<Script['meta']> = {}): Script {
@@ -157,10 +205,10 @@ export function toText(s: Script): string {
   for (const e of s.elements) {
     out.push('')
     if (e.type === 'scene') out.push(sceneHeading(e) || 'SCENE')
-    else if (e.type === 'action') out.push(e.text)
+    else if (e.type === 'action') out.push(stripMentions(e.text, s.cast))
     else if (e.type === 'dialogue') out.push(`@${name(e.character)}`, ...(e.parenthetical ? [`(${e.parenthetical.replace(/^\(|\)$/g, '')})`] : []), e.text)
     else if (e.type === 'transition') out.push(e.text.toUpperCase())
-    else if (e.type === 'note') out.push(`> ${e.label ? `${e.label}: ` : ''}${e.text}`)
+    else if (e.type === 'note') out.push(`> ${e.label ? `${e.label}: ` : ''}${stripMentions(e.text, s.cast)}`)
     else if (e.type === 'break') out.push('* * *', `->${e.text.toUpperCase()}<-`)
   }
   return out.join('\n').replace(/^\n+/, '')

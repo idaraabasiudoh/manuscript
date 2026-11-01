@@ -1137,6 +1137,33 @@ a.res-title svg { color: var(--muted); }
   .se-char-top { flex-wrap: wrap; }
 }
 
+/* ---------- @mentions in Drama action and note text ---------- */
+/* The textarea's text is transparent over a copy of the same text where mentions are tinted. */
+.mention-field { position: relative; min-width: 0; border-radius: 12px; background: var(--bg); }
+.script-editor .mention-field > textarea { position: relative; z-index: 1; background: transparent; color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--text); }
+.script-editor .mention-field > textarea::placeholder { color: var(--muted); -webkit-text-fill-color: var(--muted); }
+.script-editor .mention-field > textarea::selection { -webkit-text-fill-color: transparent; }
+.mention-backdrop {
+  position: absolute; inset: 0; margin: 0; padding: 10px 14px; border: 1px solid transparent; overflow: hidden; pointer-events: none;
+  font: 15px/1.5 var(--sans); color: var(--text); white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; tab-size: 8;
+}
+.mention { color: var(--ch-text); background: var(--ch-tile); border-radius: 4px; box-shadow: 0 0 0 2px var(--ch-tile); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.mention-menu {
+  position: absolute; z-index: 6; width: 220px; max-width: calc(100% - 8px); max-height: 240px; overflow: auto; margin: 0; padding: 6px; list-style: none;
+  border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); animation: mention-in 0.14s ease-out;
+}
+@keyframes mention-in { from { opacity: 0; transform: translateY(-4px); } }
+.mention-option {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--ch-text); font: 600 14.5px var(--sans); text-align: left; cursor: pointer;
+}
+.mention-option.on { background: var(--ch-tile); }
+.mention-dot { width: 10px; height: 10px; flex-shrink: 0; border-radius: 50%; background: var(--ch-text); }
+.mention-option-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mention-option-age { margin-left: auto; flex-shrink: 0; color: var(--muted); font-size: 12px; font-weight: 500; }
+.mention-empty { padding: 8px 10px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.pg-mention { color: var(--ch-text); font-weight: 700; }
+
 /* ---------- Audio: player, recorder, inline voice notes ---------- */
 .player { container: player / inline-size; --bar-off: color-mix(in srgb, var(--text) 18%, transparent); --bar-ghost: color-mix(in srgb, var(--text) 38%, transparent); position: relative; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .player.card { padding: 22px 22px 20px; }

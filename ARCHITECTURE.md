@@ -69,6 +69,7 @@ What `data` holds for each kind:
   - Each element has `{ id, type }` plus fields for its type: `scene` (setting, location, time), `action` (text), `dialogue` (character id, parenthetical, text), `transition` (text), `note` (label, text) or `break` (text).
   - `body` always holds the plain screenplay text produced by `toText()`, so word counts, template previews and Manu AI keep working without knowing the structure.
   - `originalText` is kept when a plain-text block is converted, so the writer can switch back.
+  - Action and note `text` can hold @mentions, stored as plain `@Name` and matched case-insensitively against the cast (longest name first). `splitMentions()` colours them, `stripMentions()` drops the `@` in `toText()`, and `renameMentions()` rewrites them when a character is renamed. In the editor, `MentionText` lays a transparent textarea over a tinted copy of the same text and opens a cast list at the caret after `@`.
   - Logic lives in `src/lib/script.ts`: `parseScript()`, `toText()` and the element helpers.
 
 ### Access model

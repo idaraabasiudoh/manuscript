@@ -24,7 +24,10 @@ import {
   TIMES,
   TRANSITIONS,
   characterVars,
+  mentionName,
   newCharacter,
+  renameMentions,
+  splitMentions,
   newElement,
   type Character,
   type ElementType,
@@ -60,6 +63,13 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
   const setCharacter = (id: string, patch: Partial<Character>) => set({ cast: cast.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const setElement = (id: string, patch: Partial<ScriptElement>) =>
     set({ elements: elements.map((e) => (e.id === id ? ({ ...e, ...patch } as ScriptElement) : e)) })
+
+  /** Renaming a character also updates their @mentions in action and note text. */
+  const renameCharacter = (c: Character, name: string) =>
+    set({
+      cast: cast.map((x) => (x.id === c.id ? { ...x, name } : x)),
+      elements: renameMentions(elements, c.name, name, cast.filter((x) => x.id !== c.id)),
+    })
 
   const addCharacter = () => {
     const c = newCharacter('', cast)
@@ -160,7 +170,7 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
                   <input
                     className="se-char-name"
                     value={c.name}
-                    onChange={(e) => setCharacter(c.id, { name: e.target.value.toUpperCase() })}
+                    onChange={(e) => renameCharacter(c, e.target.value.toUpperCase())}
                     placeholder="NAME"
                     aria-label="Character name"
                     autoFocus={focusId === c.id}
@@ -250,12 +260,13 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
                 )}
 
                 {el.type === 'action' && (
-                  <AutoText
+                  <MentionText
                     className="se-text"
                     value={el.text}
-                    onChange={(e) => setElement(el.id, { text: e.target.value })}
+                    cast={cast}
+                    onChange={(text) => setElement(el.id, { text })}
                     onKeyDown={(e) => onKeyDown(e, el)}
-                    placeholder="What do we see? Present tense."
+                    placeholder="What do we see? Present tense. Type @ to name a character."
                     autoFocus={focusId === el.id}
                   />
                 )}
@@ -311,12 +322,13 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
                 {el.type === 'note' && (
                   <div className="se-note">
                     <Choice className="se-note-label" value={el.label} options={NOTE_LABELS} onChange={(label) => setElement(el.id, { label })} placeholder="Note type" label="Note type" />
-                    <AutoText
+                    <MentionText
                       className="se-text"
                       value={el.text}
-                      onChange={(e) => setElement(el.id, { text: e.target.value })}
+                      cast={cast}
+                      onChange={(text) => setElement(el.id, { text })}
                       onKeyDown={(e) => onKeyDown(e, el)}
-                      placeholder="Camera moves, sound, or what happens between scenes…"
+                      placeholder="Camera moves, sound, or what happens between scenes… Type @ to name a character."
                       autoFocus={focusId === el.id}
                     />
                   </div>
@@ -461,4 +473,155 @@ function AutoText({ ref: outer, ...props }: TextareaHTMLAttributes<HTMLTextAreaE
     if (props.autoFocus) ref.current?.focus({ preventScroll: false })
   }, [props.autoFocus])
   return <textarea rows={1} {...props} ref={ref} />
+}
+
+// ---- @mentions --------------------------------------------------------------------
+
+/** "@" plus what's been typed of a name, right before the caret. */
+const MENTION_QUERY = /(?:^|[\s([“"'‘—–-])@([\p{L}\p{N}][\p{L}\p{N} .'’-]{0,29}|)$/u
+
+/**
+ * Action and note text with @mentions. The textarea's own text is transparent and sits over a
+ * copy of the same text where mentions are tinted in their character's colour (same font, same
+ * wrapping, so they line up). Typing "@" opens a list of the cast at the caret.
+ */
+function MentionText({
+  value,
+  onChange,
+  cast,
+  onKeyDown,
+  className = '',
+  ...rest
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | 'value'> & { value: string; onChange: (value: string) => void; cast: Character[] }) {
+  const ta = useRef<HTMLTextAreaElement>(null)
+  const marker = useRef<HTMLSpanElement>(null)
+  const [focused, setFocused] = useState(false)
+  const [caret, setCaret] = useState(0)
+  const [active, setActive] = useState(0)
+  const [dismissed, setDismissed] = useState<number | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const pendingCaret = useRef<number | null>(null)
+
+  const named = cast.filter((c) => c.name.trim())
+  const match = focused ? value.slice(0, caret).match(MENTION_QUERY) : null
+  const at = match ? caret - match[1].length - 1 : -1
+  const query = match?.[1].toLowerCase() ?? ''
+  const options = match ? named.filter((c) => c.name.toLowerCase().startsWith(query)) : []
+  const open = !!match && at !== dismissed && (options.length > 0 || (!named.length && !query))
+
+  useEffect(() => setActive(0), [query])
+
+  useLayoutEffect(() => {
+    if (pendingCaret.current !== null && ta.current) {
+      ta.current.setSelectionRange(pendingCaret.current, pendingCaret.current)
+      setCaret(pendingCaret.current)
+      pendingCaret.current = null
+    }
+  })
+
+  // Place the list just under the caret, kept inside the field.
+  useLayoutEffect(() => {
+    if (!open || !marker.current || !ta.current) return setMenuPos(null)
+    const width = ta.current.clientWidth
+    const lineHeight = parseFloat(getComputedStyle(ta.current).lineHeight) || 24
+    setMenuPos({ top: marker.current.offsetTop + lineHeight + 2, left: Math.max(0, Math.min(marker.current.offsetLeft - 8, width - 220)) })
+  }, [open, caret, value])
+
+  const sync = () => ta.current && setCaret(ta.current.selectionStart)
+
+  const pick = (c: Character) => {
+    const name = `@${mentionName(c.name)}`
+    const after = value.slice(caret)
+    const insert = after.startsWith(' ') ? name : `${name} `
+    pendingCaret.current = at + insert.length + (after.startsWith(' ') ? 1 : 0)
+    onChange(value.slice(0, at) + insert + after)
+  }
+
+  const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (open && options.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length)
+        return
+      }
+      if ((e.key === 'Enter' && !e.metaKey && !e.ctrlKey) || e.key === 'Tab') {
+        e.preventDefault()
+        pick(options[Math.min(active, options.length - 1)])
+        return
+      }
+    }
+    if (open && e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      setDismissed(at)
+      return
+    }
+    onKeyDown?.(e)
+  }
+
+  const parts = (text: string, key: string) =>
+    splitMentions(text, cast).map((p, i) =>
+      p.character ? (
+        <mark key={`${key}${i}`} className="mention has-ch" style={characterVars(p.character) as CSSProperties}>
+          {p.text}
+        </mark>
+      ) : (
+        <span key={`${key}${i}`}>{p.text}</span>
+      ),
+    )
+
+  return (
+    <div className={`mention-field ${className}`}>
+      <div className={`mention-backdrop ${className}`} aria-hidden>
+        {open ? (
+          <>
+            {parts(value.slice(0, caret), 'a')}
+            <span ref={marker} />
+            {parts(value.slice(caret), 'b')}
+          </>
+        ) : (
+          parts(value, 'v')
+        )}
+        {/* A trailing newline needs a character after it to take up its line. */}
+        {value.endsWith('\n') || !value ? '​' : null}
+      </div>
+      <AutoText
+        {...rest}
+        ref={ta}
+        className={className}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value)
+          setCaret(e.target.selectionStart)
+          if (dismissed !== null && !e.target.value.slice(0, e.target.selectionStart).match(MENTION_QUERY)) setDismissed(null)
+        }}
+        onKeyDown={keyDown}
+        onKeyUp={sync}
+        onClick={sync}
+        onSelect={sync}
+        onFocus={() => (setFocused(true), sync())}
+        onBlur={() => setFocused(false)}
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+      />
+      {open && menuPos && (
+        <ul className="mention-menu" role="listbox" style={{ top: menuPos.top, left: menuPos.left }} onPointerDown={(e) => e.preventDefault()}>
+          {options.length ? (
+            options.map((c, i) => (
+              <li key={c.id} role="option" aria-selected={i === active}>
+                <button type="button" className={`mention-option has-ch ${i === active ? 'on' : ''}`} style={characterVars(c) as CSSProperties} onMouseEnter={() => setActive(i)} onClick={() => pick(c)}>
+                  <span className="mention-dot" aria-hidden />
+                  <span className="mention-option-name">{mentionName(c.name)}</span>
+                  {c.age && <span className="mention-option-age">{c.age}</span>}
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="mention-empty">Add characters to the cast to mention them here.</li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
 }

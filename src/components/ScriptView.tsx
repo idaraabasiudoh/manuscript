@@ -1,6 +1,6 @@
 import { Check, Palette, Pencil, Type } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { characterVars, loadPageFont, PAGE_FONTS, PAGE_THEMES, pageFont, pageTheme, sceneHeading, type PageFont, type Script } from '../lib/script'
+import { characterVars, loadPageFont, PAGE_FONTS, PAGE_THEMES, pageFont, pageTheme, sceneHeading, splitMentions, type Character, type PageFont, type Script } from '../lib/script'
 
 /** A structured script laid out like a typed screenplay page. */
 export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => void }) {
@@ -77,7 +77,7 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
                 </h3>
               )
             case 'action':
-              return e.text.trim() ? <p className="pg-action" key={e.id}>{e.text}</p> : null
+              return e.text.trim() ? <p className="pg-action" key={e.id}><Mentions text={e.text} cast={script.cast} /></p> : null
             case 'dialogue':
               return (
                 <div className="pg-speech" key={e.id}>
@@ -92,7 +92,7 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
               return e.text.trim() ? (
                 <aside className="pg-note" key={e.id}>
                   {e.label && <span className="pg-note-label">{e.label}</span>}
-                  {e.text}
+                  <Mentions text={e.text} cast={script.cast} />
                 </aside>
               ) : null
             case 'break':
@@ -206,5 +206,22 @@ function FontPicker({ value, onChange }: { value: string; onChange: (font: strin
         </div>
       )}
     </PagePopover>
+  )
+}
+
+/** Action or note text with @mentions written as the character's name, in their colour. */
+function Mentions({ text, cast }: { text: string; cast: Character[] }) {
+  return (
+    <>
+      {splitMentions(text, cast).map((p, i) =>
+        p.character ? (
+          <span key={i} className="pg-mention has-ch" style={characterVars(p.character) as CSSProperties}>
+            {p.text.slice(1)}
+          </span>
+        ) : (
+          p.text
+        ),
+      )}
+    </>
   )
 }
