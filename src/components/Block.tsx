@@ -1,5 +1,5 @@
 import { Maximize2 } from 'lucide-react'
-import { useMemo, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { renderMarkdown } from '../lib/markdown'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem } from '../lib/supabase'
@@ -276,27 +276,69 @@ function AudioCard({ url, name }: { url: string; name: string }) {
 
 // ---- Links --------------------------------------------------------------------
 
-export function embedFor(url: string): string | null {
+export type Embed = { src: string; kind: 'video' | 'audio' | 'instagram'; height?: number; label: string }
+
+/** Players we can show inline for a link: YouTube, Vimeo, Loom, Spotify and Instagram. */
+export function embedFor(url: string): Embed | null {
   try {
     const u = new URL(url)
     const host = u.hostname.replace(/^www\.|^m\./, '')
-    if (host === 'youtu.be') return `https://www.youtube-nocookie.com/embed/${u.pathname.slice(1)}`
+    if (host === 'youtu.be') return { src: `https://www.youtube-nocookie.com/embed/${u.pathname.slice(1)}`, kind: 'video', label: 'YouTube' }
     if (host === 'youtube.com') {
       const id = u.searchParams.get('v') ?? u.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]+)/)?.[1]
-      if (id) return `https://www.youtube-nocookie.com/embed/${id}`
+      if (id) return { src: `https://www.youtube-nocookie.com/embed/${id}`, kind: 'video', label: 'YouTube' }
     }
     if (host === 'vimeo.com') {
       const id = u.pathname.match(/^\/(\d+)/)?.[1]
-      if (id) return `https://player.vimeo.com/video/${id}`
+      if (id) return { src: `https://player.vimeo.com/video/${id}`, kind: 'video', label: 'Vimeo' }
     }
-    if (host === 'open.spotify.com') return `https://open.spotify.com/embed${u.pathname}`
-    if (host === 'loom.com' && u.pathname.startsWith('/share/')) return `https://www.loom.com/embed/${u.pathname.slice(7)}`
+    if (host === 'loom.com' && u.pathname.startsWith('/share/')) return { src: `https://www.loom.com/embed/${u.pathname.slice(7)}`, kind: 'video', label: 'Loom' }
+    // Spotify: /track/…, /album/…, /playlist/…, /episode/…, /show/…, /artist/…, also with a regional /intl-xx/ prefix.
+    if (host === 'open.spotify.com') {
+      const m = u.pathname.match(/^(?:\/intl-[\w-]+)?\/(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/)
+      if (m) {
+        const compact = m[1] === 'track' || m[1] === 'episode'
+        return { src: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, kind: 'audio', height: compact ? 152 : 352, label: 'Spotify' }
+      }
+    }
+    // Instagram: /p/…, /reel/…, /reels/…, /tv/…, optionally under a /username/ prefix.
+    if (host === 'instagram.com') {
+      const m = u.pathname.match(/^(?:\/[\w.]+)?\/(p|reel|reels|tv)\/([\w-]+)/)
+      if (m) {
+        const type = m[1] === 'p' ? 'p' : m[1] === 'tv' ? 'tv' : 'reel'
+        return { src: `https://www.instagram.com/${type}/${m[2]}/embed/captioned/`, kind: 'instagram', height: type === 'p' ? 640 : 760, label: type === 'p' ? 'Instagram post' : 'Instagram reel' }
+      }
+    }
   } catch {
     /* not a URL */
   }
   return null
 }
 
+/** Instagram's embed reports its real height via postMessage; grow the frame to fit so nothing is cropped. */
+function InstagramFrame({ embed, title }: { embed: Embed; title: string }) {
+  const ref = useRef<HTMLIFrameElement>(null)
+  const [height, setHeight] = useState(embed.height ?? 700)
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (!/^https:\/\/(www\.)?instagram\.com$/.test(e.origin) || e.source !== ref.current?.contentWindow) return
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+        const h = Number(data?.details?.height)
+        if (data?.type === 'MEASURE' && h > 100) setHeight(Math.ceil(h))
+      } catch {
+        /* not ours */
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+  return (
+    <div className="link-embed instagram">
+      <iframe ref={ref} src={embed.src} title={title} style={{ height }} allow="autoplay; encrypted-media; picture-in-picture; clipboard-write" allowFullScreen loading="lazy" scrolling="no" />
+    </div>
+  )
+}
 export function LinkCard({ link }: { link: LinkData }) {
   const embed = embedFor(link.url)
   const host = (() => {
@@ -306,28 +348,39 @@ export function LinkCard({ link }: { link: LinkData }) {
       return link.url
     }
   })()
+  const title = link.title || link.url
+  // Spotify and Instagram players already show what they are; a slim "open" row is enough under them.
+  const compact = embed && embed.kind !== 'video'
   return (
-    <div className="link">
-      {embed && (
-        <div className={`link-embed ${embed.includes('spotify') ? 'audio' : ''}`}>
-          <iframe src={embed} title={link.title ?? link.url} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen loading="lazy" />
+    <div className={`link ${embed ? `has-${embed.kind}` : ''}`}>
+      {embed?.kind === 'instagram' && <InstagramFrame embed={embed} title={title} />}
+      {embed && embed.kind !== 'instagram' && (
+        <div className={`link-embed ${embed.kind}`} style={embed.height ? { height: embed.height } : undefined}>
+          <iframe src={embed.src} title={title} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowFullScreen loading="lazy" />
         </div>
       )}
-      <a className={`link-card ${link.image && !embed ? 'has-image' : ''}`} href={link.url} target="_blank" rel="noopener noreferrer">
-        <div className="link-text">
-          <span className="link-site mono-label">{link.site || host}</span>
-          <strong className="link-title">{link.title || link.url}</strong>
-          {link.description && <span className="link-desc">{link.description}</span>}
-          <span className="link-url truncate">
-            <External width={12} height={12} /> {host}
-          </span>
-        </div>
-        {link.image && !embed && (
-          <div className="link-image">
-            <img src={link.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.parentElement!.style.display = 'none')} />
+      {compact ? (
+        <a className="link-open" href={link.url} target="_blank" rel="noopener noreferrer">
+          <External width={13} height={13} /> Open in {embed.label.replace(/ (post|reel)$/, '')}
+          {link.title && link.title !== link.url && link.title !== embed.label && <span className="link-open-title truncate">· {link.title}</span>}
+        </a>
+      ) : (
+        <a className={`link-card ${link.image && !embed ? 'has-image' : ''}`} href={link.url} target="_blank" rel="noopener noreferrer">
+          <div className="link-text">
+            <span className="link-site mono-label">{link.site || host}</span>
+            <strong className="link-title">{title}</strong>
+            {link.description && <span className="link-desc">{link.description}</span>}
+            <span className="link-url truncate">
+              <External width={12} height={12} /> {host}
+            </span>
           </div>
-        )}
-      </a>
+          {link.image && !embed && (
+            <div className="link-image">
+              <img src={link.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => (e.currentTarget.parentElement!.style.display = 'none')} />
+            </div>
+          )}
+        </a>
+      )}
     </div>
   )
 }
@@ -344,7 +397,7 @@ function LinkBody({ block, editing, onPatch, onDone }: { block: Block; editing: 
     setError('')
     try {
       const data = await unfurl(target)
-      onPatch({ data: { ...data, url: target } })
+      onPatch({ data: { ...data, url: data.url || target } })
       onDone()
     } catch {
       onPatch({ data: { url: target, title: target } })

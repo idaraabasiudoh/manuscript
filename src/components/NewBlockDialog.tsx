@@ -76,7 +76,9 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
         if (!target) throw new Error('That doesn’t look like a web address.')
         let data: LinkData = { url: target }
         try {
-          data = { ...(await unfurl(target)), url: target }
+          const info = await unfurl(target)
+          // Short links (spotify.link, …) come back resolved to the real page, which is what the player needs.
+          data = { ...info, url: info.url || target }
         } catch {
           /* keep the bare link */
         }
@@ -162,7 +164,7 @@ export function NewBlockDialog({ project, kind, onCreate, onClose }: Props) {
           <label className="field">
             <span className="field-label">Web address</span>
             <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=…" autoFocus inputMode="url" />
-            <span className="hint">YouTube, Vimeo, Spotify and Loom links play right in the page. Other links show a preview card.</span>
+            <span className="hint">YouTube, Vimeo, Loom, Spotify and Instagram links play right in the page. Other links show a preview card.</span>
           </label>
         )}
 

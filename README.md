@@ -13,7 +13,7 @@ A project is a single page made of **named blocks**. You drag blocks in from the
 | **Prose** | Stories, treatments, synopses | Book-style paragraphs, chapters and scene breaks |
 | **Notes** | Loglines, pitches, shot lists | Clean sans-serif text |
 | **File** | PDF, MP4, MP3 or image (up to 50 MB) | PDF pages render inline, plus video/audio players and images |
-| **Link** | A web page, video or reference | YouTube, Vimeo, Spotify and Loom play inline; other links get an Open Graph card |
+| **Link** | A web page, video, song or post | YouTube, Vimeo, Loom, Spotify (songs, albums, playlists, episodes, artists, regional and short links) and Instagram (reels and posts, sized to fit) play inline; other links get an Open Graph card |
 | **Resources** | A reading or watch list | Numbered list of titles, links and notes |
 
 ## Features

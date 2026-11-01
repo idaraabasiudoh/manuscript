@@ -56,13 +56,42 @@ async function oembed(target: URL) {
   }
 }
 
+// Share links that redirect to the real page (players need the real URL).
+const SHORT_LINKS = /^(spotify\.link|spoti\.fi|instagr\.am|youtu\.be\.?)$/
+
+async function resolveShortLink(target: URL) {
+  if (!SHORT_LINKS.test(target.hostname) || target.hostname.startsWith('youtu')) return target
+  const res = await fetch(target, { redirect: 'follow', signal: AbortSignal.timeout(6000), headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ManuscriptBot/1.0)' } })
+  res.body?.cancel().catch(() => {})
+  let final = new URL(res.url || target.href)
+  // spotify.link lands on a page whose canonical track URL is in the query or a meta refresh; keep what we can.
+  if (/spotify\.link|spoti\.fi/.test(target.hostname) && final.hostname !== 'open.spotify.com') {
+    const html = await (await fetch(target, { signal: AbortSignal.timeout(6000) })).text().catch(() => '')
+    const m = html.match(/https:\/\/open\.spotify\.com\/[\w/-]+/)
+    if (m) final = new URL(m[0])
+  }
+  return final
+}
+
+/** Instagram mostly hides previews from bots; name the link by what it is. */
+function instagramInfo(target: URL) {
+  const m = target.pathname.match(/^(?:\/[\w.]+)?\/(p|reel|reels|tv)\/([\w-]+)/)
+  if (!m) return null
+  return { url: `https://www.instagram.com/${m[1] === 'p' ? 'p' : 'reel'}/${m[2]}/`, title: m[1] === 'p' ? 'Instagram post' : 'Instagram reel', description: '', image: '', site: 'Instagram' }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   try {
     const { url } = await req.json()
-    const target = new URL(String(url))
+    let target = new URL(String(url))
     if (!/^https?:$/.test(target.protocol) || PRIVATE_HOST.test(target.hostname)) {
       return json({ error: 'Unsupported URL' }, 400)
+    }
+    target = await resolveShortLink(target).catch(() => target)
+    if (/(^|\.)instagram\.com$/.test(target.hostname)) {
+      const info = instagramInfo(target)
+      if (info) return json(info)
     }
 
     const embedded = await oembed(target).catch(() => null)

@@ -16,7 +16,7 @@ Browser (Vite + React 19 SPA on Vercel)
   │
   └── Supabase Edge Functions (verify_jwt = false; service role inside)
         ├── chat    → loads project blocks → model provider (streamed) → plain-text stream
-        ├── unfurl  → oEmbed (YouTube/Vimeo/Spotify/Loom) or Open Graph scrape → link preview JSON
+        ├── unfurl  → resolve short links → oEmbed (YouTube/Vimeo/Spotify/Loom), Instagram name, or Open Graph scrape → link preview JSON
         └── delete  → removes Storage objects, then deletes project or block rows
 ```
 
