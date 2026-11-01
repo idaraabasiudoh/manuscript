@@ -1231,10 +1231,7 @@ a.res-title svg { color: var(--muted); }
 .recorder-mic:active { transform: scale(0.94); }
 .recorder-mic:disabled { opacity: 0.6; cursor: progress; }
 .recorder-mic svg { position: relative; z-index: 1; }
-.recorder-halo { position: absolute; inset: 0; border-radius: 50%; background: inherit; pointer-events: none; }
-.recorder.idle .recorder-halo, .recorder.error .recorder-halo { animation: player-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
 .recorder.recording .recorder-mic, .recorder.paused .recorder-mic { background: var(--danger); }
-.recorder.recording .recorder-halo { animation: player-ring 1.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
 .recorder-live { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; height: 56px; }
 .recorder-live i { flex: 1; min-width: 2px; height: 100%; border-radius: 999px; background: var(--ai-gradient); background-size: 4400% 100%; transform-origin: center; transition: transform 0.09s linear; }
 .recorder.idle .recorder-live i, .recorder.asking .recorder-live i, .recorder.error .recorder-live i { background: var(--line-strong); }

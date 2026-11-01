@@ -180,7 +180,6 @@ export function VoiceRecorder({ onUse, onCancel, useLabel = 'Use voice note', bu
           aria-label={active ? 'Stop recording' : 'Start recording'}
           title={active ? 'Stop' : 'Record'}
         >
-          <span className="recorder-halo" aria-hidden />
           {active ? <Square size={20} fill="currentColor" strokeWidth={0} /> : <Mic size={24} strokeWidth={2} />}
         </button>
         <div className="recorder-live" aria-hidden>
