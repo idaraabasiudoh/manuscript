@@ -87,7 +87,7 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
             <div className="block-actions">
               {confirming ? (
                 <span className="confirm">
-                  Delete this block?
+                  <span className="confirm-text">Delete this block?</span>
                   <button className="chip danger" onClick={remove} disabled={deleting}>
                     {deleting ? 'Deleting…' : 'Delete'}
                   </button>
@@ -104,14 +104,14 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
                     <ArrowUp width={15} height={15} style={{ transform: 'rotate(180deg)' }} />
                   </button>
                   {isTextKind(block.kind) && (
-                    <button className="chip ghost" onClick={onAsk} title="Ask the assistant about this block">
-                      <Spark width={13} height={13} /> Ask
+                    <button className="chip ghost" onClick={onAsk} title="Ask Manu AI about this block" aria-label="Ask Manu AI about this block">
+                      <Spark width={13} height={13} /> <span className="chip-label">Ask</span>
                     </button>
                   )}
                   {editable && (
-                    <button className={`chip ${isEditing ? 'solid' : ''}`} onClick={() => onEdit(!isEditing)}>
+                    <button className={`chip ${isEditing ? 'solid' : ''}`} onClick={() => onEdit(!isEditing)} title={isEditing ? 'Done' : 'Edit'} aria-label={isEditing ? 'Done' : 'Edit'}>
                       {isEditing ? <Check width={13} height={13} /> : <Pencil width={13} height={13} />}
-                      {isEditing ? 'Done' : 'Edit'}
+                      <span className="chip-label">{isEditing ? 'Done' : 'Edit'}</span>
                     </button>
                   )}
                   <button className="icon-btn sm" onClick={() => setConfirming(true)} title="Delete block" aria-label="Delete block">

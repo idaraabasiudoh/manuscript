@@ -882,7 +882,7 @@ a.res-title svg { color: var(--muted); }
 .se-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .se-field > span { padding-left: 2px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
 .se-choice { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.se-choice textarea { flex: 1; min-height: 44px; padding-block: 11px !important; line-height: 1.4 !important; }
+.se-choice textarea { flex: 1 1 0; width: auto !important; min-width: 0; min-height: 44px; padding-block: 11px !important; line-height: 1.4 !important; }
 .se-choice { align-items: flex-start; }
 .se-choice .icon-btn { margin-top: 6px; }
 
@@ -897,7 +897,8 @@ a.res-title svg { color: var(--muted); }
 .se-elements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .se-el { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; border-radius: 18px; background: var(--bg); border: 1px solid transparent; transition: border-color 0.15s, box-shadow 0.2s; }
 .se-el:focus-within { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
-.se-el-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; }
+.se-el-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; min-height: 32px; min-width: 0; }
+.se-el-tools { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 .se-el-type { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .se-el-tools { display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s; }
 .se-el:hover .se-el-tools, .se-el:focus-within .se-el-tools { opacity: 1; }
@@ -984,8 +985,8 @@ a.res-title svg { color: var(--muted); }
 .script-page.dark-page .has-ch { --ch-text-l: 72%; }
 .script-page.dark-page ::selection { background: color-mix(in srgb, var(--ink) 30%, transparent); }
 
-.block-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.block-title-row .block-title { flex: 1; min-width: 0; }
+.block-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; min-width: 0; }
+.block-title-row .block-title { flex: 1 1 140px; min-width: 0; }
 .pg-tools { position: relative; z-index: 4; display: flex; flex-shrink: 0; gap: 6px; font-family: var(--sans); font-style: normal; }
 .pg-pop { position: static; } /* panels anchor to .pg-tools so they line up with the page corner */
 .pg-font-list { display: flex; flex-direction: column; gap: 12px; max-height: min(440px, 60dvh); overflow: auto; padding: 2px; }
@@ -1066,6 +1067,70 @@ a.res-title svg { color: var(--muted); }
 .script-page .md-drama .sp-scene { background: rgba(120, 90, 40, 0.07); }
 .script-page .md-drama .sp-paren, .script-page .md blockquote { color: var(--ink-2); }
 .script-page .md hr { background: var(--rule); }
+
+/* ---------- Blocks adapt to their own width ----------
+   The header's control row and the block body are size containers, so a narrow block on a wide screen
+   (zoomed full screen, small window) rearranges itself like it would on a phone. (Not the whole block:
+   that would trap the fixed-position style sheets that open from the title row.) */
+.block-meta { container: blockmeta / inline-size; flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+.block-body { container: blockbody / inline-size; }
+.block-kind { min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.block-actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.confirm { flex-wrap: wrap; justify-content: flex-end; }
+
+@container blockmeta (max-width: 520px) {
+  .block-template, .block-count { display: none; }
+  .block-actions .chip:has(.chip-label) { width: 32px; padding: 0; justify-content: center; }
+  .block-actions .chip-label { display: none; }
+  .block-actions { opacity: 1; }
+}
+@container blockmeta (max-width: 300px) {
+  .block-no { display: none; }
+  .block-meta { gap: 6px; }
+  .block-actions { gap: 0; }
+}
+
+@container blockbody (max-width: 520px) {
+  /* Script builder: stacked fields */
+  .se-section { padding: 14px 12px; }
+  .se-shortcut { display: none; }
+  .se-el-tools { opacity: 1; }
+  .se-scene-row { grid-template-columns: 96px minmax(0, 1fr); grid-template-areas: 'setting time' 'loc loc'; }
+  .se-speech-top { grid-template-columns: 1fr; }
+  .se-trans, .se-break, .se-note-label { max-width: none; }
+  .se-head { flex-wrap: wrap; }
+
+  /* Script page: tighter margins and indents */
+  .script-page { font-size: 14.5px; line-height: 1.7; padding: 26px 16px 30px; }
+  .pg-titlepage h1 { font-size: 20px; letter-spacing: 0.1em; }
+  .pg-scene { font-size: 14.5px; gap: 8px; }
+  .pg-num { width: 1.6em; }
+  .pg-cue { margin-left: 26% !important; }
+  .pg-paren { margin: 0 6% 0 18% !important; }
+  .pg-line { margin: 0 2% 0 8% !important; }
+  .pg-cast dd { margin-left: 1em; }
+
+  /* Text editor: one pane at a time with Write / Preview tabs */
+  .editor-split { grid-template-columns: 1fr; }
+  .editor-split.show-write .editor-preview, .editor-split.show-preview .editor-write { display: none; }
+  .editor-bar-end .only-narrow { display: flex !important; }
+
+  /* Links and lists */
+  .link-card.has-image { grid-template-columns: 1fr; }
+  .link-image { height: 150px; order: -1; }
+  .res-fields { grid-template-columns: 1fr; }
+}
+@container blockbody (max-width: 320px) {
+  .se-el { padding: 8px; }
+  .se-el-tools .icon-btn.sm { width: 28px; height: 28px; }
+  .se-el-type { font-size: 12px; }
+  .script-page { font-size: 13.5px; padding: 20px 12px 24px; }
+  .pg-cue { margin-left: 18% !important; }
+  .pg-paren { margin: 0 2% 0 12% !important; }
+  .pg-line { margin: 0 0 0 4% !important; }
+  .se-scene-row { grid-template-columns: 1fr; grid-template-areas: 'setting' 'time' 'loc'; }
+  .se-char-top { flex-wrap: wrap; }
+}
 
 /* ---------- Floating notices ---------- */
 .tray {
