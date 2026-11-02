@@ -73,6 +73,8 @@ export type ProjectSummary = {
   updated: string
   access: Access
   role: Role
+  /** owned, shared with you by name or email, or opened through a link */
+  source: 'owned' | 'shared' | 'opened'
   ownerName: string | null
   opened: string | null
   blocks: number

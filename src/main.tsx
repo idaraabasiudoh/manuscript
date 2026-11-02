@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { UsernameSetup } from './components/AuthCard'
 import { AuthProvider, useAuth } from './lib/auth'
 import { isConfigured } from './lib/supabase'
+import { AllProjectsPage } from './pages/AllProjects'
 import { HomePage } from './pages/Home'
 import { ProjectPage } from './pages/Project'
 import { SettingsPage } from './pages/Settings'
@@ -37,6 +38,7 @@ createRoot(document.getElementById('root')!).render(
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/projects" element={<AllProjectsPage />} />
               {/* One route for the project and a block opened full screen, so switching keeps state */}
               <Route path="/:id/:blockId?" element={<ProjectPage />} />
             </Routes>

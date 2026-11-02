@@ -84,7 +84,7 @@ Every table has RLS enabled and **no policies**, so clients can't read or write 
 | `get_project(p_id)` | viewer | project and blocks with `role`, `{status:'denied'}`, or null if deleted |
 | `rename_project`, `add_block`, `update_block`, `delete_block` | editor | as before. `delete_block` is text blocks only; file blocks go through the `delete` function |
 | `get_sharing`, `set_project_access`, `share_project(p_id, p_identifier, p_role)`, `set_member_role`, `remove_member` | owner | sharing. `share_project` resolves a username (with or without `@`) or an email to an existing account |
-| `get_my_profile`, `set_username`, `list_my_projects` | signed in | profile and the owned + shared project list |
+| `get_my_profile`, `set_username`, `list_my_projects` | signed in | profile and every project the user can open: owned, shared with them, or opened via a link (`source`) |
 
 The Supabase security advisor flags these as "anon can execute SECURITY DEFINER". That's intentional: these RPCs are the API, and each one checks the caller's role itself.
 
@@ -122,7 +122,7 @@ Edge functions run with `verify_jwt = false`, but `chat` and `delete` build a cl
 
 ```
 src/
-  main.tsx                 AuthProvider + username gate; router: "/" → Home, "/settings" → Settings, "/:id/:blockId?" → Project
+  main.tsx                 AuthProvider + username gate; router: "/" → Home, "/settings" → Settings, "/projects" → All projects, "/:id/:blockId?" → Project
   styles.css               all styles: one design language (soft surfaces, pills, cards, AI gradient), shared with Manu AI
   lib/
     supabase.ts            client, types, RPC wrappers (incl. sharing/profile), auth calls, edge-function calls, XHR upload
@@ -133,13 +133,14 @@ src/
     templates.ts           block kinds metadata + templates per text kind
     util.ts                names, recent projects, positions, formatting helpers
   pages/
-    Home.tsx               sign in, or create a project + list of your projects
-    Settings.tsx           username, email, sign out, your projects
+    Home.tsx               sign in, or create a project + your 6 most recent projects
+    AllProjects.tsx        every project you can open, filtered by Yours / Shared with you / Opened, with search
+    Settings.tsx           username, email, sign out, recent projects
     Project.tsx            workspace: sidebar palette/outline, doc column, DnD, autosave, realtime, dialogs
   components/
     Block.tsx              block shell + bodies (text preview, file, link, resources)
     AuthCard.tsx           sign in / sign up card, and the first-run username form
-    ProjectList.tsx        owned + shared projects with access badges
+    ProjectList.tsx        useMyProjects + project rows with access badges (home shows the latest 6)
     ShareDialog.tsx        owner's sharing: add people, roles, general access, copy link
     TextEditor.tsx         toolbar + textarea + live preview + formatting guide
     ScriptEditor.tsx       structured Drama builder: title page, cast, script pieces, add bars

@@ -61,7 +61,7 @@ Manuscript is a shared notebook for film ideas with email/password accounts, use
 ## Gotchas
 
 - Edge functions run with `verify_jwt = false` (set in `supabase/config.toml`). Signed-out clients send the `sb_publishable_…` key, which isn't a JWT; signed-in clients send their access token (`bearer()` in `supabase.ts`). Pass `--use-api` or keep the config file when you deploy.
-- `/settings`, `/login` and a few other names are reserved in `open_project` so they can't become projects. Add a name there before adding a new top-level route.
+- `/settings`, `/projects`, `/login` and a few other names are reserved in `open_project` so they can't become projects. Add a name there before adding a new top-level route.
 - Test with throwaway accounts on `@manuscript.test` addresses and delete them afterwards (`delete from auth.users where email like 'qa-%@manuscript.test'`).
 - The free plan caps uploads at 50 MB. The bucket enforces the same limit, so raise both together.
 - Under StrictMode, effects and state updaters run twice in dev. Never put side effects inside a `setState` updater.

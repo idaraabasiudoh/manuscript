@@ -231,6 +231,18 @@ code { font: 12.5px var(--mono); background: var(--surface); padding: 2px 7px; b
 .hint.error { color: var(--danger); font-weight: 500; }
 
 .recent { max-width: 680px; margin-top: 48px; animation: hello 0.7s 0.2s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.recent-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recent-head h2 { margin: 0; }
+.recent .recent-all { margin-right: -8px; }
+
+.all-projects-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.all-projects-filter { overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.all-projects-filter button { flex-shrink: 0; white-space: nowrap; }
+.all-projects-count { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; line-height: 18px; text-align: center; }
+.all-projects-filter button.on .all-projects-count { background: var(--surface); color: var(--text-2); }
+.all-projects-search { flex: 1 1 200px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; background: var(--surface); color: var(--muted); }
+.all-projects-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 500 14px var(--sans); }
+.all-projects-search:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
 
 .home-foot { display: flex; flex-wrap: wrap; gap: 8px; }
 .home-foot span { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 13px; border-radius: 999px; background: var(--surface); color: var(--text-2); }

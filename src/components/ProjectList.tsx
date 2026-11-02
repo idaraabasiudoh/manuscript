@@ -5,18 +5,26 @@ import { listMyProjects, type ProjectSummary } from '../lib/supabase'
 import { timeAgo } from '../lib/util'
 import { ArrowRight } from './Icons'
 
-/** Every project the signed-in user owns or was added to, most recently opened first. */
-export function ProjectList({ empty }: { empty?: string }) {
+/** Every project the signed-in user owns, was added to or opened with a link, most recently opened first. */
+export function useMyProjects() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null)
   const [error, setError] = useState('')
-
   useEffect(() => {
     listMyProjects()
       .then(setProjects)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)))
   }, [])
+  return { projects, error }
+}
 
+/** The signed-in user's projects, optionally just the most recent few. */
+export function ProjectList({ empty, limit }: { empty?: string; limit?: number }) {
+  const { projects, error } = useMyProjects()
   if (error) return <p className="hint error">Couldn’t load your projects: {error}</p>
+  return <ProjectRows projects={projects && (limit ? projects.slice(0, limit) : projects)} empty={empty} />
+}
+
+export function ProjectRows({ projects, empty }: { projects: ProjectSummary[] | null; empty?: string }) {
   if (!projects)
     return (
       <div className="project-list">
@@ -36,7 +44,7 @@ export function ProjectList({ empty }: { empty?: string }) {
               <span className="project-title truncate">{p.title || p.id}</span>
               <span className="project-meta truncate">
                 /{p.id} · {p.opened ? `opened ${timeAgo(p.opened)}` : `updated ${timeAgo(p.updated)}`}
-                {p.role !== 'owner' && p.ownerName ? ` · by @${p.ownerName}` : ''}
+                {p.source !== 'owned' && p.ownerName ? ` · by @${p.ownerName}` : ''}
               </span>
             </span>
             <span className={`project-badge ${p.role}`} title={roleHint(p)}>
@@ -60,4 +68,6 @@ const roleHint = (p: ProjectSummary) =>
       : p.access === 'view'
         ? 'Anyone with the link can view'
         : 'Anyone with the link can edit'
-    : `Shared with you by @${p.ownerName ?? 'someone'}`
+    : p.source === 'shared'
+      ? `Shared with you by @${p.ownerName ?? 'someone'}`
+      : `Opened with a link to @${p.ownerName ?? 'someone'}’s project`

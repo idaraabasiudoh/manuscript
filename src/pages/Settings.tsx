@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, LogOut } from 'lucide-react'
 import { AuthCard } from '../components/AuthCard'
-import { Logo, ThemeToggle } from '../components/Icons'
+import { ArrowRight, Logo, ThemeToggle } from '../components/Icons'
 import { ProjectList } from '../components/ProjectList'
 import { useAuth } from '../lib/auth'
 import { setUsername, signOut } from '../lib/supabase'
@@ -84,8 +84,13 @@ export function SettingsPage() {
             </section>
 
             <section className="settings-card">
-              <h2>Your projects</h2>
-              <ProjectList empty="You don’t have any projects yet." />
+              <div className="recent-head">
+                <h2>Recent projects</h2>
+                <Link to="/projects" className="chip recent-all">
+                  All projects <ArrowRight width={14} height={14} />
+                </Link>
+              </div>
+              <ProjectList limit={6} empty="You don’t have any projects yet." />
             </section>
           </>
         )}

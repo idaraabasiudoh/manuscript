@@ -77,8 +77,13 @@ export function HomePage() {
             </form>
 
             <section className="recent">
-              <h2 className="mono-label">Your projects</h2>
-              <ProjectList />
+              <div className="recent-head">
+                <h2 className="mono-label">Projects</h2>
+                <Link to="/projects" className="chip ghost recent-all">
+                  All projects <ArrowRight width={14} height={14} />
+                </Link>
+              </div>
+              <ProjectList limit={6} />
             </section>
           </>
         ) : (
