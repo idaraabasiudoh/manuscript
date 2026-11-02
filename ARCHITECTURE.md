@@ -164,7 +164,7 @@ The editor buttons write this syntax for the user, and `markdown.ts` renders it.
 ```
 # Title   ## Heading   ### Subheading
 **bold**  *italic*  ++underline++  ~~strike~~  [text](https://…)
-> quote   - bullet   1. numbered   ---  divider   * * *  scene break   ->centered<-
+> quote   - bullet   1. numbered   - [ ] / - [x] checklist   ---  divider   * * *  scene break   ->centered<-
 
 Drama only:
 INT. / EXT. …     scene heading        @NAME   character cue (lines below = dialogue)

@@ -11,6 +11,7 @@ import {
   Italic,
   Link,
   List,
+  ListChecks,
   ListOrdered,
   Quote,
   SeparatorHorizontal,
@@ -135,6 +136,24 @@ function ops(ta: HTMLTextAreaElement) {
       replace(s, e, text, s + 1, s + 1 + label.length)
     },
 
+    /** Enter on a list line starts the next item; on an empty item it ends the list. Returns false to let Enter through. */
+    continueList() {
+      const { selectionStart: s, selectionEnd: e, value: v } = ta
+      if (s !== e) return false
+      const start = v.lastIndexOf('\n', s - 1) + 1
+      const nl = v.indexOf('\n', s)
+      const line = v.slice(start, nl === -1 ? v.length : nl)
+      const m = line.match(/^(\s*)(?:([-•*])\s+\[[ xX]\]|([-•*])|(\d+)([.)]))(?:\s+|$)/)
+      if (!m || s < start + m[0].trimEnd().length) return false
+      if (!line.slice(m[0].length).trim()) {
+        replace(start, start + line.length, '', start, start)
+        return true
+      }
+      const next = m[2] ? `${m[1]}${m[2]} [ ] ` : m[3] ? `${m[1]}${m[3]} ` : `${m[1]}${Number(m[4]) + 1}${m[5]} `
+      replace(s, s, '\n' + next, s + 1 + next.length, s + 1 + next.length)
+      return true
+    },
+
     currentLine() {
       const v = ta.value
       const start = v.lastIndexOf('\n', ta.selectionStart - 1) + 1
@@ -144,7 +163,10 @@ function ops(ta: HTMLTextAreaElement) {
   }
 }
 
-const STYLE = /^(#{1,3}\s+|>\s?|\s*[-•*]\s+|\s*\d+[.)]\s+|@\s*)/
+const STYLE = /^(#{1,3}\s+|>\s?|\s*[-•*]\s+\[[ xX]\]\s*|\s*[-•*]\s+|\s*\d+[.)]\s+|@\s*)/
+
+const TASK = /^\s*[-•*]\s+\[[ xX]\](\s|$)/
+const BULLET = /^\s*[-•]\s(?!\[[ xX]\](\s|$))/
 
 // ---- Toolbar definitions ------------------------------------------------------
 
@@ -164,7 +186,8 @@ const STYLES: Tool[] = [
 
 const STRUCTURE: Tool[] = [
   { id: 'quote', label: <Quote size={16} strokeWidth={1.9} />, name: 'Quote', help: 'Set a line apart as a quotation or epigraph.', run: (o) => o.linePrefix('> ', /^>/), active: (l) => /^>/.test(l) },
-  { id: 'ul', label: <List size={16} strokeWidth={1.9} />, name: 'Bulleted list', help: 'Turn lines into a bulleted list.', run: (o) => o.linePrefix('- ', /^\s*[-•]\s/), active: (l) => /^\s*[-•]\s/.test(l) },
+  { id: 'ul', label: <List size={16} strokeWidth={1.9} />, name: 'Bulleted list', help: 'Turn lines into a bulleted list.', run: (o) => o.linePrefix('- ', BULLET), active: (l) => BULLET.test(l) },
+  { id: 'task', label: <ListChecks size={16} strokeWidth={1.9} />, name: 'Checklist', help: 'Turn lines into a checklist. Tick the boxes on the page to mark items done.', run: (o) => o.linePrefix('- [ ] ', TASK), active: (l) => TASK.test(l) },
   { id: 'ol', label: <ListOrdered size={16} strokeWidth={1.9} />, name: 'Numbered list', help: 'Turn lines into a numbered list.', run: (o) => o.linePrefix((i) => `${i + 1}. `, /^\s*\d+[.)]\s/), active: (l) => /^\s*\d+[.)]\s/.test(l) },
   { id: 'center', label: <AlignCenter size={16} strokeWidth={1.9} />, name: 'Center', help: 'Center the line — good for poem titles and dedications.', run: (o) => o.lineWrap('->', '<-'), active: (l) => /^->.*<-$/.test(l) },
   { id: 'hr', label: <SeparatorHorizontal size={16} strokeWidth={1.9} />, name: 'Divider', help: 'A thin line across the page to separate sections.', run: (o) => o.insertLines('---') },
@@ -242,6 +265,10 @@ export function TextEditor({ kind, value, onChange, autoFocus, voices, onVoice }
   const syncLine = () => ref.current && setLine(ops(ref.current).currentLine())
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && !e.nativeEvent.isComposing) {
+      if (ref.current && ops(ref.current).continueList()) e.preventDefault()
+      return
+    }
     if (!(e.metaKey || e.ctrlKey)) return
     const tool = { b: STYLES[0], i: STYLES[1], u: STYLES[2] }[e.key.toLowerCase()]
     if (tool) {
@@ -345,7 +372,7 @@ export function TextEditor({ kind, value, onChange, autoFocus, voices, onVoice }
         <div className="editor-preview">
           <span className="pane-label mono-label">Preview</span>
           {value.trim() ? (
-            <RichText src={value} kind={kind} voices={voices} />
+            <RichText src={value} kind={kind} voices={voices} onChange={onChange} />
           ) : (
             <p className="muted preview-empty">Your formatted text appears here as you write.</p>
           )}
@@ -367,6 +394,7 @@ function Guide({ kind }: { kind: TextKind }) {
     ['Title / Heading / Subheading', 'Click on a line, then pick a size. "Body" makes it normal text again.'],
     ['B  I  U  S', 'Select words first, then click to make them bold, italic, underlined or crossed out.'],
     ['Lists, quotes, center', 'Click on a line (or select several) and press the button. Press again to undo it.'],
+    ['Checklist', 'Lines starting - [ ] get a box you can tick on the page; ticked ones read - [x]. Enter starts the next item, Enter on an empty one ends the list.'],
     ['New paragraph', 'Leave an empty line. A single Enter keeps lines together, like in a poem.'],
   ]
   if (kind === 'drama')

@@ -451,6 +451,14 @@ textarea.block-title { display: block; resize: none; overflow: hidden; min-heigh
 .md ul, .md ol { margin: 0 0 1em; padding-left: 1.4em; }
 .md li { margin: 0.25em 0; }
 .md li::marker { color: var(--muted); }
+.md ul.md-tasks { list-style: none; padding-left: 0.1em; }
+.md .md-task { display: flex; align-items: flex-start; gap: 0.6em; }
+.md .md-check { appearance: none; flex: none; width: 1.05em; height: 1.05em; margin: 0.28em 0 0; border: 1.5px solid var(--line-strong); border-radius: 5px; background: transparent center / 78% no-repeat; cursor: default; transition: background-color 0.15s, border-color 0.15s; }
+.md.tasks-on .md-check { cursor: pointer; }
+.md.tasks-on .md-check:hover { border-color: var(--accent); }
+.md .md-check:checked { background-color: var(--accent); border-color: var(--accent); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E"); }
+.md .md-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.md .md-task.done > span { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .md hr { border: 0; height: 1px; background: var(--line-strong); margin: 2em 0; }
 .md .md-break { text-align: center; letter-spacing: 0.6em; color: var(--muted); margin: 1.8em 0; font-size: 12px; }
 .md .md-center { text-align: center; }

@@ -156,7 +156,7 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
               />
             </>
           ) : (
-            <TextPreview block={block} onEdit={reading ? undefined : () => onEdit(true)} />
+            <TextPreview block={block} onEdit={reading ? undefined : () => onEdit(true)} onPatch={reading ? undefined : onPatch} />
           ))
         )}
         {block.kind === 'file' && <FileBody block={block} reading={reading} onPatch={onPatch} />}
@@ -205,7 +205,7 @@ function TitleInput({ value, onChange }: { value: string; onChange: (title: stri
 
 // ---- Text ---------------------------------------------------------------------
 
-function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
+function TextPreview({ block, onEdit, onPatch }: { block: Block; onEdit?: () => void; onPatch?: (p: BlockPatch) => void }) {
   if (!block.body.trim())
     return onEdit ? (
       <button className="empty-block" onClick={onEdit}>
@@ -214,7 +214,7 @@ function TextPreview({ block, onEdit }: { block: Block; onEdit?: () => void }) {
     ) : (
       <p className="muted">Nothing here yet.</p>
     )
-  const md = <RichText src={block.body} kind={isTextKind(block.kind) ? block.kind : 'text'} voices={block.data.voices} onDoubleClick={onEdit} />
+  const md = <RichText src={block.body} kind={isTextKind(block.kind) ? block.kind : 'text'} voices={block.data.voices} onDoubleClick={onEdit} onChange={onPatch && ((body) => onPatch({ body }))} />
   return block.kind === 'drama' ? <div className="script-page">{md}</div> : md
 }
 

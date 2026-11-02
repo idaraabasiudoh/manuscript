@@ -3,7 +3,7 @@
 //
 //   # Title   ## Heading   ### Subheading
 //   **bold**  *italic*  ++underline++  ~~strike~~  [text](https://…)
-//   > quote   - bullet   1. numbered   ---  divider   * * *  scene break   ->centered<-
+//   > quote   - bullet   1. numbered   - [ ] / - [x] checklist   ---  divider   * * *  scene break   ->centered<-
 //
 // Drama blocks also understand screenplay lines:
 //   INT. / EXT. scene headings · @NAME character cues (+ dialogue below) · (beat) · CUT TO:
@@ -21,20 +21,37 @@ export type Segment = { html: string } | { audio: { path: string; label: string 
 export function renderSegments(src: string, kind: TextKind = 'text'): Segment[] {
   const out: Segment[] = []
   let chunk: string[] = []
-  const push = () => {
-    const html = renderMarkdown(chunk.join('\n'), kind)
+  let start = 0
+  const push = (next: number) => {
+    const html = renderMarkdown(chunk.join('\n'), kind, start)
     if (html) out.push({ html })
     chunk = []
+    start = next
   }
-  for (const line of src.replace(/\r\n?/g, '\n').split('\n')) {
-    const m = line.trim().match(AUDIO_LINE)
-    if (m) {
-      push()
-      out.push({ audio: { label: m[1] || 'Voice note', path: m[2] } })
-    } else chunk.push(line)
-  }
-  push()
+  src
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .forEach((line, i) => {
+      const m = line.trim().match(AUDIO_LINE)
+      if (m) {
+        push(i + 1)
+        out.push({ audio: { label: m[1] || 'Voice note', path: m[2] } })
+      } else chunk.push(line)
+    })
+  push(0)
   return out
+}
+
+/** A checklist line: "- [ ] to do" or "- [x] done". */
+export const TASK_LINE = /^(\s*[-*•]\s+\[)([ xX])\](?:\s+(.*))?$/
+
+/** Ticks or unticks the checklist item on line `n` (0-based) of the text. */
+export function toggleTask(src: string, n: number) {
+  const lines = src.replace(/\r\n?/g, '\n').split('\n')
+  const m = lines[n]?.match(TASK_LINE)
+  if (!m) return src
+  lines[n] = lines[n].replace(/^(\s*[-*•]\s+\[)[ xX]\]/, `$1${m[2] === ' ' ? 'x' : ' '}]`)
+  return lines.join('\n')
 }
 
 const esc = (s: string) =>
@@ -64,19 +81,20 @@ function indented(line: string) {
 const SCENE = /^(\.(?=[^.])|(INT|EXT|EST|INT\.?\/EXT|I\/E)[. ])/i
 const TRANSITION = /^[A-Z0-9 .'’-]*(TO:|FADE OUT\.|FADE IN:|FADE TO BLACK\.|CUT TO BLACK\.)$/
 
-export function renderMarkdown(src: string, kind: TextKind = 'text') {
+/** `offset` is the line number `src` starts at in the block, so checklist boxes know which line they toggle. */
+export function renderMarkdown(src: string, kind: TextKind = 'text', offset = 0) {
   const out: string[] = []
   const lines = src.replace(/\r\n?/g, '\n').split('\n')
   const screenplay = kind === 'drama'
 
   let para: string[] = []
-  let list: { tag: 'ul' | 'ol'; items: string[] } | null = null
+  let list: { tag: 'ul' | 'ol'; items: string[]; tasks?: boolean } | null = null
   let quote: string[] = []
   let dialogue: string[] | null = null
 
   const flush = () => {
     if (para.length) out.push(`<p>${para.join('<br>')}</p>`)
-    if (list) out.push(`<${list.tag}>${list.items.map((i) => (i.startsWith('<li') ? `${i}</li>` : `<li>${i}</li>`)).join('')}</${list.tag}>`)
+    if (list) out.push(`<${list.tag}${list.tasks ? ' class="md-tasks"' : ''}>${list.items.map((i) => (i.startsWith('<li') ? `${i}</li>` : `<li>${i}</li>`)).join('')}</${list.tag}>`)
     if (quote.length) out.push(`<blockquote>${quote.join('<br>')}</blockquote>`)
     if (dialogue) out.push(`<div class="sp-dialogue">${dialogue.join('')}</div>`)
     para = []
@@ -85,19 +103,19 @@ export function renderMarkdown(src: string, kind: TextKind = 'text') {
     dialogue = null
   }
 
-  for (const line of lines) {
+  lines.forEach((line, n) => {
     const t = line.trim()
 
     if (!t) {
       flush()
-      continue
+      return
     }
 
     // Inside a screenplay speech: parentheticals and dialogue until a blank line.
     if (dialogue) {
       if (/^\(.*\)$/.test(t)) dialogue.push(`<p class="sp-paren">${inline(t)}</p>`)
       else dialogue.push(`<p class="sp-line">${inline(t)}</p>`)
-      continue
+      return
     }
 
     let m: RegExpMatchArray | null
@@ -121,8 +139,16 @@ export function renderMarkdown(src: string, kind: TextKind = 'text') {
     } else if ((m = t.match(/^>\s?(.*)$/))) {
       if (!quote.length) flush()
       quote.push(inline(m[1]))
+    } else if ((m = line.match(TASK_LINE))) {
+      if (!list?.tasks) flush()
+      list ??= { tag: 'ul', items: [], tasks: true }
+      const done = m[2] !== ' '
+      const text = m[3] ?? ''
+      list.items.push(
+        `<li class="md-task${done ? ' done' : ''}"><input type="checkbox" class="md-check" data-line="${offset + n}"${done ? ' checked' : ''} aria-label="${esc(text || 'Checklist item')}"><span>${inline(text)}</span>`,
+      )
     } else if ((m = line.match(/^\s*[-•]\s+(.*)$/)) || (!screenplay && (m = line.match(/^\s*\*\s+(.*)$/)))) {
-      if (list?.tag !== 'ul') flush()
+      if (list?.tag !== 'ul' || list.tasks) flush()
       list ??= { tag: 'ul', items: [] }
       list.items.push(inline(m[1]))
     } else if ((m = line.match(/^\s*(\d+)[.)]\s+(.*)$/))) {
@@ -144,7 +170,7 @@ export function renderMarkdown(src: string, kind: TextKind = 'text') {
       if (list || quote.length) flush()
       para.push(kind === 'poetry' ? indented(line) : inline(t))
     }
-  }
+  })
   flush()
   return out.join('\n')
 }
