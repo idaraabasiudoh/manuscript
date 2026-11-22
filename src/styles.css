@@ -1783,7 +1783,7 @@ a.res-title svg { color: var(--muted); }
 .branch-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--br); }
 .branch-banner {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 0 16px;
-  padding: 12px 14px; border-radius: 16px; border-left: 4px solid var(--br); background: var(--br-soft);
+  padding: 12px 14px; border-radius: 16px; background: var(--br-soft);
 }
 .branch-banner-text { display: grid; gap: 3px; min-width: 0; flex: 1 1 260px; font-size: 13px; }
 .branch-banner-text strong { font-size: 14.5px; }
@@ -1808,7 +1808,6 @@ a.res-title svg { color: var(--muted); }
   display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; color: var(--br); font: 600 12px var(--sans); letter-spacing: 0.02em;
 }
 .branch-fork::after { content: ''; flex: 1; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--br), transparent); }
-.branch-body > .script-page, .branch-body > .md { border-left: 3px solid var(--br); padding-left: 14px; }
 .branch-empty { margin: 0; padding: 14px; border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13.5px; }
 
 .branch-dialog { width: 620px; }
