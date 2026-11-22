@@ -1,7 +1,7 @@
 // The `docs` tool's pages: how Manuscript stores blocks and what the editor expects.
 // Keep these in step with src/lib/script.ts, src/lib/templates.ts and ARCHITECTURE.md.
 
-export const DOC_TOPICS = ['overview', 'text', 'drama', 'resources', 'write'] as const
+export const DOC_TOPICS = ['overview', 'text', 'drama', 'resources', 'branches', 'write'] as const
 export type DocTopic = (typeof DOC_TOPICS)[number]
 
 export const DOCS: Record<DocTopic, string> = {
@@ -55,10 +55,22 @@ Rules:
 data.items is a list: [ { "title": "Reference film", "url": "https://…", "note": "Why it matters" } ].
 url may be "" for an item without a link. The app assigns ids.`,
 
+  branches: `# Branches (alternative versions)
+Poetry, prose and drama blocks can have branches: a different version of the block from a chosen point onward.
+- Everything before the starting point is shared with the block (called Main); the branch holds its own continuation.
+- The writer can compare versions side by side and "use" a branch, which swaps it into Main (Main's old version is kept as a branch).
+- read on a block lists its branches: name, where each starts, and the branch's text.
+To propose a branch, use write with action "branch":
+- block_id: the block; name: a short name for the idea (e.g. "Darker ending");
+- from: where it starts — for drama, the id of the script element (from read); for poetry/prose, the paragraph or stanza number, counting from 1;
+- the continuation from that point: script (drama: cast + elements, starting with the replaced element) or body (poetry/prose).
+Use branches when the writer wants alternatives, "another version", "what if" takes or endings, so Main stays untouched.`,
+
   write: `# Using the write tool
 - Every write is shown to the writer as a preview card and only happens if they accept it. Say in one sentence what you're proposing; don't paste the whole content into your message too.
 - One write call per turn. Put several changes in one call as a list of operations.
 - create: kind, title, and content: body (text, poetry, prose), script (drama) or items (resources). Optional after: the id of the block to place it after; otherwise it goes at the end.
+- branch: a new version of a poetry, prose or drama block from a point onward (see docs topic "branches").
 - update: block_id plus whatever changes: title, body, script or items. script and items replace the old ones completely, so read the block first.
 - You can't delete blocks, or create file or link blocks.`,
 }

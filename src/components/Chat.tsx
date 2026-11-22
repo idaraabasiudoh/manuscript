@@ -5,6 +5,7 @@ import {
   ClipboardPaste,
   Copy,
   FilePen,
+  GitBranch,
   FilePlus,
   Image,
   Lightbulb,
@@ -488,23 +489,32 @@ function ProposalCard({ proposal, onDecide }: { proposal: Proposal; onDecide: (a
 
 function OpPreview({ op, open }: { op: ChatOp; open: boolean }) {
   const text = useMemo(() => {
-    if (op.kind === 'drama' && op.script !== undefined) return toText(normalizeScript(op.script))
+    if (op.kind === 'drama' && op.script !== undefined) {
+      const script = normalizeScript(op.script)
+      // A branch continues an existing script, so its preview leaves out the title page and cast.
+      return toText(op.action === 'branch' ? { ...script, meta: { title: '', format: '', genre: '', logline: '', author: '' }, cast: [] } : script)
+    }
     if (op.kind === 'resources' && op.items) return op.items.map((i) => `- **${i.title ?? ''}**${i.url ? ` ${i.url}` : ''}${i.note ? ` — ${i.note}` : ''}`).join('\n')
     return op.body ?? ''
   }, [op])
   const html = useMemo(() => (text ? renderMarkdown(text, op.kind === 'drama' ? 'drama' : op.kind === 'resources' ? 'text' : (op.kind as TextKind)) : ''), [text, op.kind])
-  const Icon = op.action === 'create' ? FilePlus : FilePen
+  const Icon = op.action === 'create' ? FilePlus : op.action === 'branch' ? GitBranch : FilePen
   const label = KINDS[op.kind]?.label ?? op.kind
   return (
     <details className="proposal-op" open={open}>
       <summary>
         <Icon size={15} strokeWidth={1.75} />
         <span className="truncate">
-          {op.action === 'create' ? 'New' : 'Update'} {label} block: <b>{op.title || 'Untitled'}</b>
+          {op.action === 'branch' ? (
+            <>New branch of <b>{op.title || 'Untitled'}</b>: <b>{op.name}</b></>
+          ) : (
+            <>{op.action === 'create' ? 'New' : 'Update'} {label} block: <b>{op.title || 'Untitled'}</b></>
+          )}
         </span>
       </summary>
       {op.action === 'update' && !text && op.title !== undefined && <p className="proposal-note">Renames the block.</p>}
       {op.action === 'update' && text && <p className="proposal-note">Replaces the block’s current content.</p>}
+      {op.action === 'branch' && <p className="proposal-note">A separate version from that point on. The block itself doesn’t change.</p>}
       {html && <div className="md md-chat proposal-body" dangerouslySetInnerHTML={{ __html: html }} />}
     </details>
   )

@@ -27,13 +27,19 @@ import {
   type ChatOp,
   type Comment,
   addComment,
+  addBranchComment,
+  createBranch,
+  deleteBranch,
+  listBranches,
+  updateBranch as saveBranch,
   listComments,
   removeComment,
   resolveComment,
   type Project,
 } from '../lib/supabase'
 import { audioMeta } from '../lib/audio'
-import { isScript, normalizeScript, toText, uid as newId } from '../lib/script'
+import { isScript, normalizeScript, toText, uid as newId, type Script } from '../lib/script'
+import { startBranch, swapIn, tailPatch, type Branch } from '../lib/branches'
 import { KINDS, PALETTE } from '../lib/templates'
 import { between, blockSlug, forgetProject, load, NAME_RE, pad, plural, rememberProject, save, timeAgo, wordCount } from '../lib/util'
 
@@ -141,8 +147,15 @@ export function ProjectPage() {
   }, [id, flash, authReady, uid])
 
   const [comments, setComments] = useState<Comment[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
+  /** Branches with unsaved edits keep their local version when others' changes arrive. */
+  const branchDirty = useRef(new Map<string, Partial<Branch>>())
+  const branchTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const loadComments = useCallback(() => {
     listComments(id).then(setComments).catch(() => {})
+    listBranches(id)
+      .then((remote) => setBranches((cur) => remote.map((b) => (branchDirty.current.has(b.id) ? cur.find((c) => c.id === b.id) ?? b : b))))
+      .catch(() => {})
   }, [id])
   useEffect(() => {
     if (status === 'ready') loadComments()
@@ -528,6 +541,23 @@ export function ProjectPage() {
       } else if (op.body !== undefined) content.body = op.body
       if (op.title !== undefined) content.title = op.title
 
+      if (op.action === 'branch' && existing) {
+        // A new version from a point onward; Main is untouched.
+        const script = isScript(existing.data.script) ? existing.data.script : null
+        const index = script ? Math.max(0, script.elements.findIndex((e) => e.id === op.from)) : Math.max(0, Number(op.from) - 1)
+        const start = startBranch(existing, index)
+        const tail = script && op.script !== undefined ? normalizeScript({ ...(op.script as object), meta: script.meta }, script) : null
+        const b = await createBranch(existing.id, {
+          ...start,
+          name: op.name || 'New idea',
+          body: tail ? '' : op.body ?? start.body,
+          script: tail ? { cast: tail.cast, elements: tail.elements } : start.script,
+        })
+        setBranches((all) => [...all, b])
+        flash(`New branch “${b.name}” added. Pick it above “${existing.title || 'the block'}” to read it.`)
+        last = existing
+        continue
+      }
       if (op.action === 'create') {
         const at = op.after ? list.findIndex((b) => b.id === op.after) + 1 : list.length
         const block = await addBlock(id, {
@@ -589,13 +619,75 @@ export function ProjectPage() {
   const isOwner = project?.role === 'owner'
   /** Viewers are always in read mode. */
   const viewMode = reading || (!!project && !canEdit)
+  const flushBranch = async (branchId: string) => {
+    clearTimeout(branchTimers.current.get(branchId))
+    branchTimers.current.delete(branchId)
+    const patch = branchDirty.current.get(branchId)
+    if (!patch) return
+    branchDirty.current.delete(branchId)
+    setSaving((n) => n + 1)
+    try {
+      await saveBranch(branchId, patch)
+      notify()
+    } catch (e) {
+      flash(`Couldn’t save the branch: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setSaving((n) => n - 1)
+    }
+  }
+  const patchBranch = (branch: Branch, patch: Partial<Branch>, delay = SAVE_DELAY) => {
+    setBranches((all) => all.map((b) => (b.id === branch.id ? { ...b, ...patch } : b)))
+    branchDirty.current.set(branch.id, { ...branchDirty.current.get(branch.id), ...patch })
+    clearTimeout(branchTimers.current.get(branch.id))
+    branchTimers.current.set(branch.id, setTimeout(() => flushBranch(branch.id), delay))
+  }
+
+  const branchingFor = (block: Block) => ({
+    branches: branches.filter((b) => b.blockId === block.id),
+    canEdit,
+    onCreate: async (index: number, name: string) => {
+      await flush(block.id)
+      const b = await createBranch(block.id, { name, ...startBranch(block, index) })
+      setBranches((all) => [...all, b])
+      notify()
+      return b
+    },
+    onTail: (branch: Branch, tail: Script | string) => patchBranch(branch, tailPatch(tail)),
+    onRename: (branch: Branch, name: string) => patchBranch(branch, { name }, 0),
+    onDelete: async (branch: Branch) => {
+      clearTimeout(branchTimers.current.get(branch.id))
+      branchDirty.current.delete(branch.id)
+      await deleteBranch(branch.id)
+      setBranches((all) => all.filter((b) => b.id !== branch.id))
+      setComments((all) => all.filter((c) => c.branchId !== branch.id))
+      notify()
+    },
+    onUse: async (branch: Branch) => {
+      await flushBranch(branch.id)
+      await flush(block.id)
+      const current = blocks.find((b) => b.id === block.id) ?? block
+      const latest = branches.find((b) => b.id === branch.id) ?? branch
+      const { patch, previous } = swapIn(current, latest)
+      const updated = await updateBlock(block.id, patch)
+      setProject((p) => p && { ...p, blocks: p.blocks.map((b) => (b.id === updated.id ? updated : b)) })
+      // Main's old version becomes a branch, so nothing is lost; the used branch is now Main.
+      const kept = await createBranch(block.id, { name: `Main before “${branch.name}”`.slice(0, 80), ...previous })
+      await deleteBranch(branch.id)
+      setBranches((all) => [...all.filter((b) => b.id !== branch.id), kept])
+      setComments((all) => all.filter((c) => c.branchId !== branch.id))
+      notify()
+      flash(`“${branch.name}” is now Main. The old version is saved as a branch.`)
+      return kept
+    },
+  })
+
   const commentingFor = (block: Block) => ({
     comments: comments.filter((c) => c.blockId === block.id),
     canComment: !!session,
     canResolve: canEdit,
     isOwner,
-    onAdd: async (body: string, d: { quote: string; line: number | null }) => {
-      const c = await addComment(block.id, body, d.quote, d.line)
+    onAdd: async (body: string, d: { quote: string; line: number | null }, branchId: string | null) => {
+      const c = branchId ? await addBranchComment(block.id, branchId, body, d.quote, d.line) : await addComment(block.id, body, d.quote, d.line)
       setComments((all) => [...all, c])
       notify()
     },
@@ -834,6 +926,7 @@ export function ProjectPage() {
                   canMoveUp={false}
                   canMoveDown={false}
                   commenting={commentingFor(fullBlock)}
+                  branching={branchingFor(fullBlock)}
                 />
               </div>
             ) : (
@@ -888,6 +981,7 @@ export function ProjectPage() {
                     canMoveDown={i < blocks.length - 1}
                     href={`/${id}/${blockSlug(block.id)}`}
                     commenting={commentingFor(block)}
+                    branching={branchingFor(block)}
                   />,
                 ])}
                 {dropLine(blocks.length)}

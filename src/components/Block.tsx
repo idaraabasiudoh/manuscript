@@ -1,4 +1,6 @@
-import { Maximize2, MessageSquare, MessageSquarePlus } from 'lucide-react'
+import { GitBranch, Maximize2, MessageSquare, MessageSquarePlus } from 'lucide-react'
+import { canBranch, nextBranchName, paragraphs, type Branch } from '../lib/branches'
+import { BranchBanner, BranchBar, BranchBody, CompareDialog, ConfirmDialog, NewBranchDialog } from './Branches'
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem, type Comment } from '../lib/supabase'
@@ -32,6 +34,34 @@ type Props = {
   /** Link that opens this block full screen; absent when it already is. */
   href?: string
   commenting: Commenting
+  branching: Branching
+}
+
+export type Branching = {
+  branches: Branch[]
+  canEdit: boolean
+  onCreate: (index: number, name: string) => Promise<Branch>
+  onTail: (branch: Branch, tail: Script | string) => void
+  onRename: (branch: Branch, name: string) => void
+  onDelete: (branch: Branch) => Promise<void>
+  /** Puts the branch into Main; returns the branch that now holds Main's old version. */
+  onUse: (branch: Branch) => Promise<Branch | undefined>
+}
+
+/** Which piece of the block a selected passage starts in (for "Branch from here"). */
+function pieceIndexOf(block: Block, quote: string): number {
+  const first = quote.split('\n')[0].trim().toLowerCase()
+  if (!first) return 0
+  if (block.kind === 'drama' && isScript(block.data.script)) {
+    const s = block.data.script
+    const i = s.elements.findIndex((e) => {
+      const text = e.type === 'scene' ? `${e.setting} ${e.location} ${e.time}` : e.type === 'dialogue' ? `${s.cast.find((c) => c.id === e.character)?.name ?? ''} ${e.parenthetical} ${e.text}` : e.text
+      return text.toLowerCase().includes(first) || first.includes(text.toLowerCase().trim() || '\u0000')
+    })
+    return Math.max(0, i)
+  }
+  const i = paragraphs(block.body).findIndex((p) => p.toLowerCase().includes(first))
+  return Math.max(0, i)
 }
 
 export type Commenting = {
@@ -39,12 +69,12 @@ export type Commenting = {
   canComment: boolean
   canResolve: boolean
   isOwner: boolean
-  onAdd: (body: string, draft: CommentDraft) => Promise<void>
+  onAdd: (body: string, draft: CommentDraft, branchId: string | null) => Promise<void>
   onResolve: (c: Comment, resolved: boolean) => Promise<void>
   onDelete: (c: Comment) => Promise<void>
 }
 
-export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown, href, commenting }: Props) {
+export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown, href, commenting, branching }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const meta = KINDS[block.kind]
@@ -52,10 +82,22 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
   const editable = block.kind !== 'file'
   const isEditing = editing && !reading
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [branchDialog, setBranchDialog] = useState<{ index?: number } | null>(null)
+  const [comparing, setComparing] = useState<{ left: string | null; right: string | null } | null>(null)
+  const [confirm, setConfirm] = useState<{ kind: 'use' | 'delete'; branch: Branch } | null>(null)
+  const branchable = canBranch(block) && !reading
+  const branches = branching.branches
+  const active = branches.find((b) => b.id === activeId) ?? null
+  const selectBranch = (id: string | null) => {
+    if (isEditing) onEdit(false)
+    setActiveId(id)
+  }
   const [threadOpen, setThreadOpen] = useState(false)
   const [draft, setDraft] = useState<CommentDraft | null>(null)
   const [pick, clearPick] = useSelectionComment(bodyRef, block.body, !isEditing && commenting.canComment)
-  const openComments = commenting.comments.filter((c) => !c.resolved)
+  const viewComments = commenting.comments.filter((c) => (c.branchId ?? null) === (active?.id ?? null))
+  const openComments = viewComments.filter((c) => !c.resolved)
   useCommentHighlights(bodyRef, block.id, isEditing ? [] : openComments.map((c) => c.quote).filter(Boolean), block.body)
   const startComment = (d: CommentDraft | null) => {
     setDraft(d)
@@ -107,6 +149,11 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
             <Link to={href} className="icon-btn sm block-open" title="Open full screen" aria-label={`Open ${block.title || 'block'} full screen`}>
               <Maximize2 size={15} strokeWidth={1.75} />
             </Link>
+          )}
+          {branchable && branching.canEdit && branches.length === 0 && (
+            <button className="chip ghost" onClick={() => setBranchDialog({})} title="Try a different version from any point, without changing this one">
+              <GitBranch width={13} height={13} /> <span className="chip-label">Branch</span>
+            </button>
           )}
           {(commenting.canComment || commenting.comments.length > 0) && (
             <button
@@ -174,17 +221,54 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
         )}
       </header>
 
+      {canBranch(block) && branches.length > 0 && (
+        <BranchBar
+          branches={branches}
+          active={active?.id ?? null}
+          onSelect={selectBranch}
+          onNew={() => setBranchDialog({})}
+          onCompare={() => setComparing({ left: null, right: active?.id ?? branches[0]?.id ?? null })}
+          canEdit={branching.canEdit && !reading}
+        />
+      )}
+      {active && (
+        <BranchBanner
+          branch={active}
+          canEdit={branching.canEdit && !reading}
+          onRename={(name) => branching.onRename(active, name)}
+          onUse={() => setConfirm({ kind: 'use', branch: active })}
+          onDelete={() => setConfirm({ kind: 'delete', branch: active })}
+          onCompare={() => setComparing({ left: null, right: active.id })}
+        />
+      )}
       <div className="block-body" ref={bodyRef}>
         {pick && (
-          <button
-            className="comment-pick"
-            style={{ left: Math.max(0, pick.x - 16), top: Math.max(0, pick.y - 40) }}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={() => startComment({ quote: pick.quote, line: pick.line })}
-          >
-            <MessageSquarePlus size={14} /> Comment
-          </button>
+          <span className="comment-pick" style={{ left: Math.max(0, pick.x - 16), top: Math.max(0, pick.y - 40) }} onPointerDown={(e) => e.preventDefault()}>
+            <button onClick={() => startComment({ quote: pick.quote, line: pick.line })}>
+              <MessageSquarePlus size={14} /> Comment
+            </button>
+            {branchable && branching.canEdit && !active && (
+              <button
+                onClick={() => {
+                  setBranchDialog({ index: pieceIndexOf(block, pick.quote) })
+                  clearPick()
+                  window.getSelection()?.removeAllRanges()
+                }}
+              >
+                <GitBranch size={14} /> Branch from here
+              </button>
+            )}
+          </span>
         )}
+        {active ? (
+          <BranchBody
+            block={block}
+            branch={active}
+            editing={isEditing}
+            onEdit={reading || !branching.canEdit ? undefined : () => onEdit(true)}
+            onChange={(tail) => branching.onTail(active, tail)}
+          />
+        ) : <>
         {block.kind === 'drama' && isScript(block.data.script) ? (
           <ScriptBody block={block} script={block.data.script} editing={isEditing} onPatch={onPatch} onEdit={reading ? undefined : () => onEdit(true)} />
         ) : (
@@ -208,15 +292,75 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
         {block.kind === 'file' && <FileBody block={block} reading={reading} onPatch={onPatch} />}
         {block.kind === 'link' && <LinkBody block={block} editing={isEditing} onPatch={onPatch} onDone={() => onEdit(false)} />}
         {block.kind === 'resources' && <ResourcesBody block={block} editing={isEditing} onPatch={onPatch} />}
+        </>}
       </div>
+      {branchDialog && (
+        <NewBranchDialog
+          block={block}
+          branches={branches}
+          initialIndex={branchDialog.index}
+          defaultName={nextBranchName(branches)}
+          onClose={() => setBranchDialog(null)}
+          onCreate={async (index, name) => {
+            const b = await branching.onCreate(index, name)
+            setBranchDialog(null)
+            if (isEditing) onEdit(false)
+            setActiveId(b.id)
+            onEdit(true)
+          }}
+        />
+      )}
+      {comparing && (
+        <CompareDialog
+          block={block}
+          branches={branches}
+          left={comparing.left}
+          right={comparing.right}
+          canEdit={branching.canEdit && !reading}
+          onUse={async (b) => {
+            if (isEditing) onEdit(false)
+            const kept = await branching.onUse(b)
+            setActiveId(null)
+            void kept
+          }}
+          onClose={() => setComparing(null)}
+        />
+      )}
+      {confirm?.kind === 'use' && (
+        <ConfirmDialog
+          title={`Use “${confirm.branch.name}” as Main?`}
+          body={`Main will continue with this version from “${confirm.branch.anchorLabel}”. Nothing is lost: Main’s current version from that point is kept as a new branch, so you can switch back any time.`}
+          confirm="Use this version"
+          onConfirm={async () => {
+            if (isEditing) onEdit(false)
+            await branching.onUse(confirm.branch)
+            setActiveId(null)
+          }}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      {confirm?.kind === 'delete' && (
+        <ConfirmDialog
+          title={`Delete “${confirm.branch.name}”?`}
+          body="This branch and its comments will be removed for everyone. Main isn’t affected. This can’t be undone."
+          confirm="Delete branch"
+          danger
+          onConfirm={async () => {
+            if (isEditing) onEdit(false)
+            await branching.onDelete(confirm.branch)
+            setActiveId(null)
+          }}
+          onClose={() => setConfirm(null)}
+        />
+      )}
       {threadOpen && (
         <CommentThread
-          comments={commenting.comments}
+          comments={viewComments}
           draft={draft}
           canComment={commenting.canComment}
           canResolve={commenting.canResolve}
           isOwner={commenting.isOwner}
-          onAdd={commenting.onAdd}
+          onAdd={(body, d) => commenting.onAdd(body, d, active?.id ?? null)}
           onResolve={commenting.onResolve}
           onDelete={commenting.onDelete}
           onClose={() => (setThreadOpen(false), setDraft(null))}

@@ -33,6 +33,7 @@ const json = (body: unknown, status = 200) =>
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 type Block = { id: string; kind: string; title: string; body: string; data: Record<string, unknown>; position: number; updated: string }
+type BranchRow = { id: string; block_id: string; name: string; anchor_label: string; body: string; script: { elements?: Record<string, unknown>[]; cast?: { id: string; name: string }[] } | null }
 type Part = { text?: string; thought?: boolean; functionCall?: { name: string; args?: Record<string, unknown> }; functionResponse?: unknown; [k: string]: unknown }
 type Content = { role: 'user' | 'model'; parts: Part[] }
 
@@ -78,7 +79,7 @@ You have tools:
 - read: look at the project's blocks (the outline, or one block in full including a script's structure).
 - docs: how blocks are stored and what the editor expects. Read the relevant topic before your first write of a kind in a conversation (e.g. "drama" before writing a script).
 - ask_question: ask the writer a multiple-choice question (they can also type their own answer) when you need a decision before acting — e.g. what kind of block, which title, or how to split something. Don't ask what you can reasonably decide yourself. Whenever you would end a reply by asking the writer to choose between options, call ask_question instead of writing the question in your message.
-- write: create new blocks or change existing ones. The writer sees a preview and must accept it, so propose writes freely when they'd help — e.g. when asked to write, draft, add, fix or restructure something on the page. Don't write when they only want ideas or feedback in the chat.
+- write: create new blocks, change existing ones, or start a branch (an alternative version of a poetry, prose or drama block from some point on, which leaves the original untouched — good for "another version", "what if" or alternative endings). The writer sees a preview and must accept it, so propose writes freely when they'd help — e.g. when asked to write, draft, add, fix or restructure something on the page. Don't write when they only want ideas or feedback in the chat.
 When you do write, say in a sentence or two what you're proposing; the preview shows the content, so don't repeat it in your message.
 
 When you write content in the chat, use the formatting the editor understands:
@@ -164,7 +165,9 @@ const TOOLS = [
             operations: S('ARRAY', {
               items: S('OBJECT', {
                 properties: {
-                  action: S('STRING', { enum: ['create', 'update'] }),
+                  action: S('STRING', { enum: ['create', 'update', 'branch'] }),
+                  name: S('STRING', { description: 'branch: a short name for the version' }),
+                  from: S('STRING', { description: 'branch: drama element id, or paragraph/stanza number from 1' }),
                   block_id: S('STRING', { description: 'update: the block to change' }),
                   after: S('STRING', { description: 'create: put the new block after this block id (default: at the end)' }),
                   kind: S('STRING', { enum: WRITABLE, description: 'create' }),
@@ -186,12 +189,13 @@ const TOOLS = [
 
 // ---- Tool execution -------------------------------------------------------------
 
-function readTool(blocks: Block[], args: Record<string, unknown>) {
+function readTool(blocks: Block[], branches: BranchRow[], args: Record<string, unknown>) {
   const id = typeof args.block_id === 'string' ? args.block_id.trim() : ''
   if (!id) {
     return {
       blocks: blocks.map((b) => ({
         id: b.id, kind: b.kind, title: b.title, words: b.body.split(/\s+/).filter(Boolean).length, updated: b.updated,
+        branches: branches.filter((x) => x.block_id === b.id).map((x) => x.name),
       })),
     }
   }
@@ -205,12 +209,18 @@ function readTool(blocks: Block[], args: Record<string, unknown>) {
     data.script = {
       ...script,
       cast: cast.map(({ id: _id, color: _c, ...c }: Record<string, unknown>) => c),
-      elements: script.elements.map(({ id: _id, ...e }) =>
+      // Element ids stay: a branch names the element it starts from.
+      elements: script.elements.map((e) =>
         e.type === 'dialogue' ? { ...e, character: cast.find((c) => c.id === e.character)?.name ?? e.character } : e,
       ),
     }
   }
-  return { id: b.id, kind: b.kind, title: b.title, body: b.kind === 'drama' && data.script ? undefined : b.body, data }
+  const versions = branches.filter((x) => x.block_id === b.id).map((x) => {
+    const cast = x.script?.cast ?? []
+    const elements = (x.script?.elements ?? []).map(({ id: _i, ...e }) => (e.type === 'dialogue' ? { ...e, character: cast.find((c) => c.id === e.character)?.name ?? e.character } : e))
+    return { name: x.name, starts_at: x.anchor_label, ...(x.script ? { elements } : { body: x.body }) }
+  })
+  return { id: b.id, kind: b.kind, title: b.title, body: b.kind === 'drama' && data.script ? undefined : b.body, data, branches: versions }
 }
 
 type Op = Record<string, unknown>
@@ -243,8 +253,22 @@ function validateWrite(blocks: Block[], args: Record<string, unknown>): { ops: O
       if ('error' in content) return { error: String(content.error) }
       if (title === undefined && !Object.keys(content).length) return { error: `${where}: nothing to change` }
       ops.push({ action: 'update', block_id: block.id, kind: block.kind, title, ...content })
+    } else if (op.action === 'branch') {
+      const id = str('block_id')
+      const block = id && blocks.find((b) => b.id === id)
+      if (!block) return { error: `${where}: no block with id ${id}` }
+      if (!['poetry', 'prose', 'drama'].includes(block.kind)) return { error: `${where}: only poetry, prose and drama blocks can have branches` }
+      const from = String(op.from ?? '').trim()
+      const script = (block.data?.script ?? null) as { elements?: { id: string }[] } | null
+      if (script?.elements) {
+        if (!script.elements.some((e) => e.id === from)) return { error: `${where}: from must be the id of an element in that script (use read)` }
+      } else if (!/^\d+$/.test(from) || Number(from) < 1) return { error: `${where}: from must be a paragraph or stanza number, counting from 1` }
+      const content = contentFor(block.kind === 'drama' && !script?.elements ? 'prose' : block.kind, op, where)
+      if ('error' in content) return { error: String(content.error) }
+      if (!Object.keys(content).length) return { error: `${where}: give the branch's text from that point (${script?.elements ? 'script' : 'body'})` }
+      ops.push({ action: 'branch', block_id: block.id, kind: block.kind, title: block.title, name: (str('name') || 'New idea').slice(0, 80), from, ...content })
     } else {
-      return { error: `${where}: action must be create or update` }
+      return { error: `${where}: action must be create, update or branch` }
     }
   }
   return { ops }
@@ -316,12 +340,14 @@ Deno.serve(async (req) => {
     const { data: role } = await caller.rpc('project_role', { p_id: project })
     if (role !== 'owner' && role !== 'editor') return json({ error: 'Manu AI is only available to people who can edit this project' }, 403)
 
-    const [{ data: proj }, { data: rows }] = await Promise.all([
+    const [{ data: proj }, { data: rows }, { data: branchRows }] = await Promise.all([
       admin.from('projects').select('title').eq('id', project).maybeSingle(),
       admin.from('blocks').select('id, kind, title, body, data, position, updated').eq('project_id', project).order('position'),
+      admin.from('branches').select('id, block_id, name, anchor_label, body, script').eq('project_id', project).order('created'),
     ])
     if (!proj) return json({ error: 'Project not found' }, 404)
     const blocks = (rows ?? []) as Block[]
+    const branches = (branchRows ?? []) as BranchRow[]
 
     const contents: Content[] = history.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
     const system = systemPrompt(proj.title, blocks, focus) + (skill && SKILLS[skill] ? `\n\n${SKILLS[skill]}` : '')
@@ -330,9 +356,14 @@ Deno.serve(async (req) => {
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const emit = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+        let said = false
+        const speak = (event: Record<string, unknown>) => {
+          said = true
+          emit(event)
+        }
         try {
           for (let step = 0; step < MAX_STEPS; step++) {
-            const { parts, failed } = await callModel(apiKey, model, system, contents, step < MAX_STEPS - 1, emit)
+            const { parts, failed } = await callModel(apiKey, model, system, contents, step < MAX_STEPS - 1, speak)
             if (failed) return
             const calls = parts.filter((p) => p.functionCall)
             if (!calls.length) return
@@ -345,7 +376,7 @@ Deno.serve(async (req) => {
               const { name, args = {} } = functionCall!
               emit({ type: 'step', tool: name, label: (STEP_LABEL[name] ?? (() => 'Working'))(args, blocks) })
               let response: unknown
-              if (name === 'read') response = readTool(blocks, args)
+              if (name === 'read') response = readTool(blocks, branches, args)
               else if (name === 'docs') response = DOCS[args.topic as DocTopic] ? { content: DOCS[args.topic as DocTopic] } : { error: `Topics: ${DOC_TOPICS.join(', ')}` }
               else if (name === 'write') {
                 if (proposal || question) response = { error: 'Only one write or question per turn' }
@@ -371,19 +402,20 @@ Deno.serve(async (req) => {
             }
             // A valid write ends the turn: the writer decides, and their answer arrives as the next message.
             if (proposal) {
-              emit({ type: 'proposal', ops: proposal })
+              speak({ type: 'proposal', ops: proposal })
               return
             }
             if (question) {
-              emit({ type: 'question', ...question })
+              speak({ type: 'question', ...question })
               return
             }
             contents.push({ role: 'user', parts: responses })
           }
         } catch (e) {
           console.error(e)
-          emit({ type: 'error', message: 'Manu AI was interrupted. Please try again.' })
+          speak({ type: 'error', message: 'Manu AI was interrupted. Please try again.' })
         } finally {
+          if (!said) emit({ type: 'error', message: 'Manu AI couldn’t finish that. Try asking in a different way.' })
           controller.close()
         }
       },

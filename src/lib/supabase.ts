@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Branch, BranchScript } from './branches'
 
 export const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
 export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -165,8 +166,11 @@ export const unfurl = (url: string) => invoke<LinkData>('unfurl', { url })
 
 /** One change Manu AI proposes. Applied by the browser only after the writer accepts it. */
 export type ChatOp = {
-  action: 'create' | 'update'
+  action: 'create' | 'update' | 'branch'
   kind: BlockKind
+  /** branch: the version's name and where it starts (drama element id, or paragraph number from 1) */
+  name?: string
+  from?: string
   block_id?: string
   after?: string
   title?: string
@@ -186,7 +190,7 @@ export type ChatProgress = { text: string; steps: string[] }
 function forModel(m: ChatMessage) {
   if (m.question) return `${m.content}\n\n[Asked the writer: ${m.question.question} Options: ${m.question.options.join(' / ')}]`.trim()
   if (!m.proposal) return m.content
-  const what = m.proposal.ops.map((o) => `${o.action} ${o.kind} “${o.title ?? ''}”`).join('; ')
+  const what = m.proposal.ops.map((o) => (o.action === 'branch' ? `branch “${o.name}” of “${o.title ?? ''}”` : `${o.action} ${o.kind} “${o.title ?? ''}”`)).join('; ')
   const outcome = { applied: 'The writer accepted and it was applied', declined: 'The writer declined it', pending: 'The writer hasn’t answered yet' }[m.proposal.status]
   return `${m.content}\n\n[Proposed change: ${what}. ${outcome}.]`.trim()
 }
@@ -330,6 +334,8 @@ function uploadWithToken(project: string, file: File, token: string, onProgress:
 export type Comment = {
   id: string
   blockId: string
+  /** null for comments on Main */
+  branchId: string | null
   /** The passage the comment is about; empty for a comment on the whole block. */
   quote: string
   line: number | null
@@ -345,3 +351,17 @@ export const addComment = (block: string, body: string, quote = '', line: number
   rpc<Comment>('add_comment', { p_block: block, p_body: body, p_quote: quote, p_line: line })
 export const resolveComment = (id: string, resolved: boolean) => rpc<void>('resolve_comment', { p_id: id, p_resolved: resolved })
 export const removeComment = (id: string) => rpc<void>('delete_comment', { p_id: id })
+
+// ---- Branches -----------------------------------------------------------------
+
+
+export const listBranches = (project: string) => rpc<Branch[]>('list_branches', { p_id: project })
+export const createBranch = (block: string, b: { name: string; anchor: string; anchorIndex: number; anchorLabel: string; body: string; script: BranchScript | null }) =>
+  rpc<Branch>('create_branch', {
+    p_block: block, p_name: b.name, p_anchor: b.anchor, p_anchor_index: b.anchorIndex, p_anchor_label: b.anchorLabel, p_body: b.body, p_script: b.script,
+  })
+export type BranchPatch = Partial<Pick<Branch, 'name' | 'body' | 'script' | 'anchor' | 'anchorIndex' | 'anchorLabel'>>
+export const updateBranch = (id: string, patch: BranchPatch) => rpc<Branch>('update_branch', { p_id: id, p_patch: patch })
+export const deleteBranch = (id: string) => rpc<void>('delete_branch', { p_id: id })
+export const addBranchComment = (block: string, branch: string | null, body: string, quote = '', line: number | null = null) =>
+  rpc<Comment>('add_branch_comment', { p_block: block, p_branch: branch, p_body: body, p_quote: quote, p_line: line })

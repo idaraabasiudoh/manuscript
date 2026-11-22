@@ -41,6 +41,8 @@ type Props = {
   onChange: (script: Script) => void
   /** Present when the block was converted from plain text; restores that text. */
   onRevert?: () => void
+  /** Hide the title page section (editing a branch, which shares Main's title page). */
+  bare?: boolean
 }
 
 const TYPES: { type: ElementType; label: string; hint: string; icon: LucideIcon }[] = [
@@ -53,7 +55,7 @@ const TYPES: { type: ElementType; label: string; hint: string; icon: LucideIcon 
 ]
 const TYPE_META = Object.fromEntries(TYPES.map((t) => [t.type, t])) as Record<ElementType, (typeof TYPES)[number]>
 
-export function ScriptEditor({ script, onChange, onRevert }: Props) {
+export function ScriptEditor({ script, onChange, onRevert, bare }: Props) {
   const [focusId, setFocusId] = useState<string>()
   const [menuAt, setMenuAt] = useState<string | null>(null)
   const { meta, cast, elements } = script
@@ -123,7 +125,7 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
   return (
     <div className="script-editor">
       {/* ---- Title page ---- */}
-      <section className="se-section">
+      {!bare && (<section className="se-section">
         <header className="se-head">
           <div>
             <h4>Title page</h4>
@@ -149,7 +151,7 @@ export function ScriptEditor({ script, onChange, onRevert }: Props) {
           <span>Logline</span>
           <AutoText value={meta.logline} onChange={(e) => setMeta({ logline: e.target.value })} placeholder="One sentence: who wants what, and what stands in the way." />
         </label>
-      </section>
+      </section>)}
 
       {/* ---- Cast ---- */}
       <section className="se-section">

@@ -3,16 +3,17 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { characterVars, loadPageFont, PAGE_FONTS, PAGE_THEMES, pageFont, pageTheme, sceneHeading, splitMentions, type Character, type PageFont, type Script } from '../lib/script'
 
 /** A structured script laid out like a typed screenplay page. */
-export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => void }) {
+/** `bare` leaves out the title page and cast (a branch's continuation); `firstScene` continues scene numbering. */
+export function ScriptView({ script, onEdit, bare, firstScene = 0 }: { script: Script; onEdit?: () => void; bare?: boolean; firstScene?: number }) {
   const { meta, cast, elements } = script
   const byId = (id: string) => cast.find((c) => c.id === id)
-  const hasTitle = meta.title || meta.author || meta.format || meta.genre || meta.logline
+  const hasTitle = !bare && (meta.title || meta.author || meta.format || meta.genre || meta.logline)
   const theme = pageTheme(script.theme)
   const font = pageFont(script.font)
   useEffect(() => loadPageFont(font), [font])
-  let sceneNo = 0
+  let sceneNo = firstScene
 
-  if (!hasTitle && !cast.length && !elements.length)
+  if (!hasTitle && (bare || !cast.length) && !elements.length)
     return onEdit ? (
       <button className="empty-block" onClick={onEdit}>
         <Pencil size={15} /> Empty script — click to start writing
@@ -47,7 +48,7 @@ export function ScriptView({ script, onEdit }: { script: Script; onEdit?: () => 
         </header>
       )}
 
-      {cast.length > 0 && (
+      {!bare && cast.length > 0 && (
         <section className="pg-cast">
           <h2>Characters</h2>
           <dl>
