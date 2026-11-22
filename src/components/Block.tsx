@@ -1,7 +1,8 @@
-import { Maximize2 } from 'lucide-react'
+import { Maximize2, MessageSquare, MessageSquarePlus } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem } from '../lib/supabase'
+import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem, type Comment } from '../lib/supabase'
+import { CommentThread, useCommentHighlights, useSelectionComment, type CommentDraft } from './Comments'
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes, pad, wordCount } from '../lib/util'
 import { ArrowUp, Check, Close, Download, External, Grip, KindIcon, Pencil, Plus, Spark, Trash } from './Icons'
@@ -30,15 +31,38 @@ type Props = {
   canMoveDown: boolean
   /** Link that opens this block full screen; absent when it already is. */
   href?: string
+  commenting: Commenting
 }
 
-export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown, href }: Props) {
+export type Commenting = {
+  comments: Comment[]
+  canComment: boolean
+  canResolve: boolean
+  isOwner: boolean
+  onAdd: (body: string, draft: CommentDraft) => Promise<void>
+  onResolve: (c: Comment, resolved: boolean) => Promise<void>
+  onDelete: (c: Comment) => Promise<void>
+}
+
+export function BlockView({ block, index, editing, reading, onEdit, onPatch, onDelete, onFocus, onAsk, onDragStart, onDragEnd, onMove, canMoveUp, canMoveDown, href, commenting }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const meta = KINDS[block.kind]
   const template = isTextKind(block.kind) ? TEMPLATES[block.kind].find((t) => t.id === block.data.template && t.id !== 'blank') : undefined
   const editable = block.kind !== 'file'
   const isEditing = editing && !reading
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [threadOpen, setThreadOpen] = useState(false)
+  const [draft, setDraft] = useState<CommentDraft | null>(null)
+  const [pick, clearPick] = useSelectionComment(bodyRef, block.body, !isEditing && commenting.canComment)
+  const openComments = commenting.comments.filter((c) => !c.resolved)
+  useCommentHighlights(bodyRef, block.id, isEditing ? [] : openComments.map((c) => c.quote).filter(Boolean), block.body)
+  const startComment = (d: CommentDraft | null) => {
+    setDraft(d)
+    setThreadOpen(true)
+    clearPick()
+    window.getSelection()?.removeAllRanges()
+  }
 
   const remove = async () => {
     setDeleting(true)
@@ -53,7 +77,7 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
   return (
     <article
       id={`block-${block.id}`}
-      className={`block kind-${block.kind} ${isEditing ? 'editing' : ''} ${deleting ? 'deleting' : ''}`}
+      className={`block kind-${block.kind} ${isEditing ? 'editing' : ''} ${deleting ? 'deleting' : ''} ${threadOpen ? 'has-thread' : ''}`}
       onFocusCapture={onFocus}
       onPointerDown={onFocus}
     >
@@ -83,6 +107,18 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
             <Link to={href} className="icon-btn sm block-open" title="Open full screen" aria-label={`Open ${block.title || 'block'} full screen`}>
               <Maximize2 size={15} strokeWidth={1.75} />
             </Link>
+          )}
+          {(commenting.canComment || commenting.comments.length > 0) && (
+            <button
+              className={`chip ghost comment-chip ${openComments.length ? 'has' : ''}`}
+              onClick={() => (threadOpen ? setThreadOpen(false) : startComment(null))}
+              title="Comments"
+              aria-label={`Comments (${openComments.length})`}
+              aria-expanded={threadOpen}
+            >
+              <MessageSquare width={13} height={13} />
+              {openComments.length > 0 && <span>{openComments.length}</span>}
+            </button>
           )}
           {!reading && (
             <div className="block-actions">
@@ -138,7 +174,17 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
         )}
       </header>
 
-      <div className="block-body">
+      <div className="block-body" ref={bodyRef}>
+        {pick && (
+          <button
+            className="comment-pick"
+            style={{ left: Math.max(0, pick.x - 16), top: Math.max(0, pick.y - 40) }}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => startComment({ quote: pick.quote, line: pick.line })}
+          >
+            <MessageSquarePlus size={14} /> Comment
+          </button>
+        )}
         {block.kind === 'drama' && isScript(block.data.script) ? (
           <ScriptBody block={block} script={block.data.script} editing={isEditing} onPatch={onPatch} onEdit={reading ? undefined : () => onEdit(true)} />
         ) : (
@@ -163,6 +209,20 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
         {block.kind === 'link' && <LinkBody block={block} editing={isEditing} onPatch={onPatch} onDone={() => onEdit(false)} />}
         {block.kind === 'resources' && <ResourcesBody block={block} editing={isEditing} onPatch={onPatch} />}
       </div>
+      {threadOpen && (
+        <CommentThread
+          comments={commenting.comments}
+          draft={draft}
+          canComment={commenting.canComment}
+          canResolve={commenting.canResolve}
+          isOwner={commenting.isOwner}
+          onAdd={commenting.onAdd}
+          onResolve={commenting.onResolve}
+          onDelete={commenting.onDelete}
+          onClose={() => (setThreadOpen(false), setDraft(null))}
+          onClearDraft={() => setDraft(null)}
+        />
+      )}
     </article>
   )
 }

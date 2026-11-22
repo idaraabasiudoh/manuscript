@@ -163,20 +163,47 @@ export const deleteProject = (id: string) => invoke<{ files: number }>('delete',
 
 export const unfurl = (url: string) => invoke<LinkData>('unfurl', { url })
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string }
+/** One change Manu AI proposes. Applied by the browser only after the writer accepts it. */
+export type ChatOp = {
+  action: 'create' | 'update'
+  kind: BlockKind
+  block_id?: string
+  after?: string
+  title?: string
+  body?: string
+  script?: unknown
+  items?: { title?: string; url?: string; note?: string }[]
+}
+export type Proposal = { ops: ChatOp[]; status: 'pending' | 'applied' | 'declined'; error?: string }
 
-/** Streams the assistant's reply; `onText` receives the accumulated text so far. */
+export type ChatQuestion = { question: string; options: string[]; allowOther: boolean; answer?: string }
+
+export type ChatMessage = { role: 'user' | 'assistant'; content: string; proposal?: Proposal; question?: ChatQuestion; steps?: string[]; skill?: string }
+
+export type ChatProgress = { text: string; steps: string[] }
+
+/** What the model is told about a past message: its text plus what became of any proposed change. */
+function forModel(m: ChatMessage) {
+  if (m.question) return `${m.content}\n\n[Asked the writer: ${m.question.question} Options: ${m.question.options.join(' / ')}]`.trim()
+  if (!m.proposal) return m.content
+  const what = m.proposal.ops.map((o) => `${o.action} ${o.kind} “${o.title ?? ''}”`).join('; ')
+  const outcome = { applied: 'The writer accepted and it was applied', declined: 'The writer declined it', pending: 'The writer hasn’t answered yet' }[m.proposal.status]
+  return `${m.content}\n\n[Proposed change: ${what}. ${outcome}.]`.trim()
+}
+
+/** Runs one agent turn. `onProgress` receives the reply so far and the tool steps taken. */
 export async function chat(
   project: string,
   messages: ChatMessage[],
   focus: string | undefined,
-  onText: (text: string) => void,
+  onProgress: (p: ChatProgress) => void,
   signal?: AbortSignal,
-) {
+  skill?: string,
+): Promise<{ text: string; steps: string[]; ops?: ChatOp[]; question?: ChatQuestion; error?: string }> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
     method: 'POST',
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${await bearer()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project, messages, focus }),
+    body: JSON.stringify({ project, messages: messages.map((m) => ({ role: m.role, content: forModel(m) })), focus, skill }),
     signal,
   })
   if (!res.ok || !res.body) {
@@ -186,13 +213,36 @@ export async function chat(
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let text = ''
+  let buffer = ''
+  let ops: ChatOp[] | undefined
+  let error: string | undefined
+  let question: ChatQuestion | undefined
+  const steps: string[] = []
+  const handle = (line: string) => {
+    if (!line.trim()) return
+    let e
+    try {
+      e = JSON.parse(line)
+    } catch {
+      return
+    }
+    if (e.type === 'text') text += e.text
+    else if (e.type === 'step') steps.push(e.label)
+    else if (e.type === 'proposal') ops = e.ops
+    else if (e.type === 'question') question = { question: e.question, options: e.options, allowOther: e.allowOther !== false }
+    else if (e.type === 'error') error = e.message
+    onProgress({ text, steps: [...steps] })
+  }
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
-    text += decoder.decode(value, { stream: true })
-    onText(text)
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    lines.forEach(handle)
   }
-  return text
+  handle(buffer)
+  return { text, steps, ops, question, error }
 }
 
 // ---- Storage ------------------------------------------------------------------
@@ -274,3 +324,24 @@ function uploadWithToken(project: string, file: File, token: string, onProgress:
     xhr.send(file)
   })
 }
+
+// ---- Comments -----------------------------------------------------------------
+
+export type Comment = {
+  id: string
+  blockId: string
+  /** The passage the comment is about; empty for a comment on the whole block. */
+  quote: string
+  line: number | null
+  body: string
+  resolved: boolean
+  created: string
+  mine: boolean
+  authorName: string
+}
+
+export const listComments = (project: string) => rpc<Comment[]>('list_comments', { p_id: project })
+export const addComment = (block: string, body: string, quote = '', line: number | null = null) =>
+  rpc<Comment>('add_comment', { p_block: block, p_body: body, p_quote: quote, p_line: line })
+export const resolveComment = (id: string, resolved: boolean) => rpc<void>('resolve_comment', { p_id: id, p_resolved: resolved })
+export const removeComment = (id: string) => rpc<void>('delete_comment', { p_id: id })

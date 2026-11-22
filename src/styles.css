@@ -815,6 +815,25 @@ a.res-title svg { color: var(--muted); }
   background: var(--ai-gradient); animation: pulse-dot 1s ease-in-out infinite;
 }
 
+/* Manu AI tool steps and change previews */
+.chat-steps { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 3px; font-size: 12.5px; color: var(--ai-muted); }
+.chat-steps li::before { content: '✓'; display: inline-block; width: 16px; color: var(--ai-muted); }
+.chat-steps.live li.now::before { content: '•'; animation: step-pulse 1s ease-in-out infinite; color: var(--accent); }
+@keyframes step-pulse { 50% { opacity: 0.3; } }
+.proposal { margin: 10px 0 4px; border: 1px solid var(--ai-line); border-radius: 14px; background: var(--ai-surface); overflow: hidden; }
+.proposal.declined { opacity: 0.6; }
+.proposal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; font-size: 13px; }
+.proposal-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ai-muted); }
+.proposal-badge.ok { color: var(--accent); }
+.proposal-op { border-top: 1px solid var(--ai-line); }
+.proposal-op summary { display: flex; align-items: center; gap: 8px; padding: 9px 14px; cursor: pointer; font-size: 13px; list-style: none; }
+.proposal-op summary::-webkit-details-marker { display: none; }
+.proposal-op summary b { font-weight: 600; }
+.proposal-note { margin: 0; padding: 0 14px 6px; font-size: 12px; color: var(--ai-muted); }
+.proposal-body { max-height: 320px; overflow: auto; margin: 0 10px 10px; padding: 10px 12px; border-radius: 10px; background: var(--ai-bg); font-size: 13.5px; }
+.proposal-error { margin: 0; padding: 0 14px 8px; font-size: 12.5px; color: #d33; }
+.proposal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--ai-line); }
+.proposal-actions .btn { height: 32px; padding: 0 14px; font-size: 13px; }
 .chat-error {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 16px;
   background: color-mix(in srgb, var(--ai-3) 12%, var(--ai-bg)); color: var(--ai-text); font-size: 13px;
@@ -1675,3 +1694,67 @@ a.res-title svg { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---- Comments ---------------------------------------------------------------- */
+.block { position: relative; }
+.block-body { position: relative; }
+.comment-chip { gap: 4px; }
+.comment-chip.has { color: var(--accent); }
+.comment-pick {
+  position: absolute; z-index: 5; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  border: 0; border-radius: 999px; background: var(--text); color: var(--bg); font: 600 12.5px/1 var(--sans);
+  box-shadow: var(--shadow); cursor: pointer; white-space: nowrap;
+}
+::highlight(comment) { background-color: color-mix(in srgb, #f5c84c 38%, transparent); }
+.comment-thread {
+  margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);
+  font-size: 13px; display: grid; gap: 8px; text-align: left;
+}
+@media (min-width: 1560px) {
+  /* Wide screens: the thread sits beside the block, in the margin. */
+  .comment-thread { position: absolute; top: 0; left: calc(100% + 20px); width: 280px; margin: 0; max-height: 70vh; overflow: auto; z-index: 4; }
+}
+.comment-thread-head { display: flex; align-items: center; gap: 6px; }
+.comment-thread-head button { margin-left: auto; }
+.comment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.comment { padding: 9px 10px; border-radius: 12px; background: var(--bg); }
+.comment.resolved { opacity: 0.6; }
+.comment-head { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.comment-tools { margin-left: auto; display: inline-flex; gap: 2px; }
+.comment-quote { margin: 6px 0 0; padding: 2px 8px; border-left: 3px solid #f5c84c; color: var(--muted); font-size: 12.5px; white-space: pre-wrap; max-height: 5.5em; overflow: hidden; }
+.comment-quote.draft { display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+.comment-quote.draft span { flex: 1; }
+.comment-body { margin: 5px 0 0; white-space: pre-wrap; line-height: 1.45; }
+.comment-empty { margin: 0; font-size: 12.5px; }
+.comment-toggle { justify-self: start; border: 0; background: none; padding: 0; color: var(--muted); font-size: 12px; cursor: pointer; }
+.comment-form { display: grid; gap: 6px; }
+.comment-form textarea { width: 100%; resize: vertical; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: inherit; }
+.comment-form .btn { justify-self: end; height: 30px; padding: 0 14px; font-size: 12.5px; }
+.comment-error { margin: 0; color: #d33; font-size: 12px; }
+.icon-btn.xs { width: 24px; height: 24px; }
+
+/* ---- Manu AI skills and questions ------------------------------------------------ */
+.skill-item { align-items: flex-start !important; }
+.skill-text { display: grid; gap: 1px; flex: 1; min-width: 0; text-align: left; }
+.skill-slash { color: var(--ai-muted); font-size: 12px; font-weight: 400; }
+.skill-desc { color: var(--ai-muted); font-size: 12px; line-height: 1.35; white-space: normal; }
+.chat-context.skill { color: var(--accent); }
+.msg-skill { align-self: flex-end; margin-bottom: 4px; padding: 2px 8px; border-radius: 999px; background: var(--ai-surface); color: var(--accent); font-size: 11.5px; font-weight: 600; }
+.msg.user .msg-text { max-height: 260px; overflow: auto; }
+.question { margin: 10px 0 4px; padding: 12px 14px; border: 1px solid var(--ai-line); border-radius: 14px; background: var(--ai-surface); }
+.question-text { margin: 0 0 10px; font-weight: 600; font-size: 13.5px; }
+.question-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.question-option {
+  padding: 7px 12px; border: 1px solid var(--ai-line); border-radius: 999px; background: var(--ai-bg); color: var(--ai-text);
+  font: 500 13px/1.2 var(--sans); cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s;
+}
+.question-option:hover:not(:disabled) { border-color: var(--accent); }
+.question-option.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--ai-bg)); }
+.question-option.other { color: var(--ai-muted); border-style: dashed; }
+.question.done .question-option:not(.on) { opacity: 0.5; }
+.question-option:disabled { cursor: default; }
+.question-answer { margin: 8px 0 0; font-size: 12.5px; color: var(--ai-muted); }
+.question-other { display: flex; gap: 6px; margin-top: 8px; }
+.question-other input { flex: 1; min-width: 0; height: 34px; padding: 0 12px; border: 1px solid var(--ai-line); border-radius: 999px; background: var(--ai-bg); color: var(--ai-text); font: inherit; font-size: 13px; }
+.question-other .btn { height: 34px; padding: 0 14px; font-size: 13px; }
+.chat-context.skill svg { color: var(--accent); }

@@ -24,10 +24,16 @@ import {
   type Block,
   type BlockKind,
   type BlockPatch,
+  type ChatOp,
+  type Comment,
+  addComment,
+  listComments,
+  removeComment,
+  resolveComment,
   type Project,
 } from '../lib/supabase'
 import { audioMeta } from '../lib/audio'
-import { isScript } from '../lib/script'
+import { isScript, normalizeScript, toText, uid as newId } from '../lib/script'
 import { KINDS, PALETTE } from '../lib/templates'
 import { between, blockSlug, forgetProject, load, NAME_RE, pad, plural, rememberProject, save, timeAgo, wordCount } from '../lib/util'
 
@@ -134,7 +140,16 @@ export function ProjectPage() {
     }
   }, [id, flash, authReady, uid])
 
+  const [comments, setComments] = useState<Comment[]>([])
+  const loadComments = useCallback(() => {
+    listComments(id).then(setComments).catch(() => {})
+  }, [id])
+  useEffect(() => {
+    if (status === 'ready') loadComments()
+  }, [status, loadComments])
+
   const refresh = useCallback(async () => {
+    loadComments()
     const remote = await getProject(id).catch(() => undefined)
     if (remote === undefined) return
     if (remote === null) {
@@ -159,7 +174,7 @@ export function ProjectPage() {
         blocks: merged.sort((a, b) => a.position - b.position),
       }
     })
-  }, [id])
+  }, [id, loadComments])
 
   useEffect(() => {
     if (status !== 'ready') return
@@ -494,9 +509,55 @@ export function ProjectPage() {
     setChatDraft({ text: `Help me with “${block.title || 'this block'}”: `, at: Date.now() })
   }
 
-  const insertFromChat = async (text: string) => {
-    const heading = text.match(/^#{1,3}\s+(.+)$/m)?.[1]
-    await createBlock({ kind: 'text', title: heading?.replace(/[*_~+]/g, '').slice(0, 80) || 'From Manu AI', body: text, data: {} }, endPosition())
+  /** Applies a change Manu AI proposed and the writer accepted, through the same RPCs as manual edits. */
+  const applyFromChat = async (ops: ChatOp[]) => {
+    let list = blocks
+    let last: Block | undefined
+    for (const op of ops) {
+      const existing = op.block_id ? list.find((b) => b.id === op.block_id) : undefined
+      const content: BlockPatch = {}
+      if (op.kind === 'drama' && op.script !== undefined) {
+        const prev = existing && isScript(existing.data.script) ? existing.data.script : undefined
+        const script = normalizeScript(op.script, prev)
+        if (!script.meta.title) script.meta.title = op.title ?? existing?.title ?? ''
+        content.body = toText(script)
+        content.data = { ...(existing?.data ?? { template: 'blank' }), script, originalText: undefined }
+      } else if (op.kind === 'resources' && op.items) {
+        const items = op.items.map((i) => ({ id: newId(), title: i.title ?? '', url: i.url ?? '', note: i.note ?? '' }))
+        content.data = { ...(existing?.data ?? {}), items }
+      } else if (op.body !== undefined) content.body = op.body
+      if (op.title !== undefined) content.title = op.title
+
+      if (op.action === 'create') {
+        const at = op.after ? list.findIndex((b) => b.id === op.after) + 1 : list.length
+        const block = await addBlock(id, {
+          kind: op.kind,
+          title: content.title ?? 'Untitled',
+          body: content.body ?? '',
+          data: content.data ?? (op.kind === 'drama' ? {} : { template: 'blank' }),
+          position: positionAt(at || list.length, list),
+        })
+        list = [...list, block].sort((a, b) => a.position - b.position)
+        last = block
+      } else if (existing) {
+        // Save anything the writer typed first, then take the accepted version and leave edit mode.
+        await flush(existing.id)
+        const block = await updateBlock(existing.id, content)
+        list = list.map((b) => (b.id === block.id ? block : b))
+        setEditing((s) => {
+          const next = new Set(s)
+          next.delete(block.id)
+          return next
+        })
+        last = block
+      }
+    }
+    setProject((p) => p && { ...p, blocks: list })
+    notify()
+    if (last) {
+      setFocusId(last.id)
+      scrollTo(last.id)
+    }
   }
 
   // ---- Render -----------------------------------------------------------------
@@ -528,6 +589,27 @@ export function ProjectPage() {
   const isOwner = project?.role === 'owner'
   /** Viewers are always in read mode. */
   const viewMode = reading || (!!project && !canEdit)
+  const commentingFor = (block: Block) => ({
+    comments: comments.filter((c) => c.blockId === block.id),
+    canComment: !!session,
+    canResolve: canEdit,
+    isOwner,
+    onAdd: async (body: string, d: { quote: string; line: number | null }) => {
+      const c = await addComment(block.id, body, d.quote, d.line)
+      setComments((all) => [...all, c])
+      notify()
+    },
+    onResolve: async (c: Comment, resolved: boolean) => {
+      await resolveComment(c.id, resolved)
+      setComments((all) => all.map((x) => (x.id === c.id ? { ...x, resolved } : x)))
+      notify()
+    },
+    onDelete: async (c: Comment) => {
+      await removeComment(c.id)
+      setComments((all) => all.filter((x) => x.id !== c.id))
+      notify()
+    },
+  })
 
   const totalWords = blocks.reduce((n, b) => n + (isTextKind(b.kind) ? wordCount(b.body) : 0), 0)
   const focused = blocks.find((b) => b.id === focusId)
@@ -751,6 +833,7 @@ export function ProjectPage() {
                   onMove={() => {}}
                   canMoveUp={false}
                   canMoveDown={false}
+                  commenting={commentingFor(fullBlock)}
                 />
               </div>
             ) : (
@@ -804,6 +887,7 @@ export function ProjectPage() {
                     canMoveUp={i > 0}
                     canMoveDown={i < blocks.length - 1}
                     href={`/${id}/${blockSlug(block.id)}`}
+                    commenting={commentingFor(block)}
                   />,
                 ])}
                 {dropLine(blocks.length)}
@@ -856,7 +940,7 @@ export function ProjectPage() {
           draft={chatDraft}
           onOpenChange={setChatOpen}
           onFocus={setFocusId}
-          onInsert={insertFromChat}
+          onApply={applyFromChat}
         />
       )}
 

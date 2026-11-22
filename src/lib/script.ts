@@ -183,6 +183,70 @@ export function isScript(value: unknown): value is Script {
   return !!value && typeof value === 'object' && (value as Script).version === 1 && Array.isArray((value as Script).elements)
 }
 
+const str = (v: unknown, max = 5000) => (typeof v === 'string' ? v.slice(0, max) : '')
+const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => {
+  const s = str(v).trim().toUpperCase()
+  return allowed.find((a) => a.toUpperCase() === s) ?? fallback
+}
+
+/**
+ * Turns a script written by Manu AI (no ids or colours, loosely typed) into a valid Script.
+ * Speakers missing from the cast are added; existing cast members keep their ids and colours,
+ * and an existing script's theme and font carry over.
+ */
+export function normalizeScript(raw: unknown, previous?: Script): Script {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const m = (r.meta && typeof r.meta === 'object' ? r.meta : {}) as Record<string, unknown>
+  const script = emptyScript({
+    title: str(m.title, 200), format: str(m.format, 60) || 'Short Film', genre: str(m.genre, 60), logline: str(m.logline, 1000), author: str(m.author, 200),
+  })
+  if (previous?.theme) script.theme = previous.theme
+  if (previous?.font) script.font = previous.font
+  const prior = previous?.cast ?? []
+  const addCast = (name: string, extra: Partial<Character> = {}) => {
+    const upper = name.trim().toUpperCase()
+    if (!upper || script.cast.some((c) => c.name === upper)) return
+    const old = prior.find((c) => c.name.trim().toUpperCase() === upper)
+    // Colours keep counting from the old cast too, so a returning character never takes another's colour.
+    script.cast.push(old ? { ...old, ...extra, name: upper } : newCharacter(upper, [...prior, ...script.cast], extra))
+  }
+  for (const c of Array.isArray(r.cast) ? r.cast : []) {
+    const o = (c ?? {}) as Record<string, unknown>
+    const extra: Partial<Character> = {}
+    if (str(o.age)) extra.age = str(o.age, 60)
+    if (str(o.description)) extra.description = str(o.description, 1000)
+    addCast(str(o.name, 60), extra)
+  }
+  for (const e of Array.isArray(r.elements) ? r.elements : []) {
+    const o = (e ?? {}) as Record<string, unknown>
+    const id = uid()
+    switch (o.type) {
+      case 'scene':
+        script.elements.push({ id, type: 'scene', setting: pick(o.setting, ['INT.', 'EXT.', 'INT./EXT.', ''] as const, 'INT.'), location: str(o.location, 200).toUpperCase(), time: str(o.time, 60).toUpperCase() })
+        break
+      case 'dialogue': {
+        const character = str(o.character, 60).trim().toUpperCase()
+        addCast(character)
+        script.elements.push({ id, type: 'dialogue', character, parenthetical: str(o.parenthetical, 200).replace(/^\(|\)$/g, ''), text: str(o.text) })
+        break
+      }
+      case 'transition':
+        script.elements.push({ id, type: 'transition', text: str(o.text, 60).toUpperCase() || 'CUT TO:' })
+        break
+      case 'note':
+        script.elements.push({ id, type: 'note', label: str(o.label, 60) || 'Composition note', text: str(o.text) })
+        break
+      case 'break':
+        script.elements.push({ id, type: 'break', text: str(o.text, 60).toUpperCase() || 'END OF ACT ONE' })
+        break
+      case 'action':
+        script.elements.push({ id, type: 'action', text: str(o.text) })
+        break
+    }
+  }
+  return script
+}
+
 export function sceneHeading(e: Extract<ScriptElement, { type: 'scene' }>) {
   return [e.setting, e.location.trim().toUpperCase()].filter(Boolean).join(' ') + (e.time.trim() ? ` - ${e.time.trim().toUpperCase()}` : '')
 }
