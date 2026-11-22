@@ -225,8 +225,12 @@ export function normalizeScript(raw: unknown, previous?: Script): Script {
         script.elements.push({ id, type: 'scene', setting: pick(o.setting, ['INT.', 'EXT.', 'INT./EXT.', ''] as const, 'INT.'), location: str(o.location, 200).toUpperCase(), time: str(o.time, 60).toUpperCase() })
         break
       case 'dialogue': {
-        const character = str(o.character, 60).trim().toUpperCase()
-        addCast(character)
+        // Manu names speakers; the script stores the cast member's id.
+        const said = str(o.character, 60).trim()
+        const byId = script.cast.find((c) => c.id === said) ?? prior.find((c) => c.id === said)
+        const name = byId ? byId.name : said.toUpperCase()
+        addCast(name)
+        const character = script.cast.find((c) => c.name === name)?.id ?? ''
         script.elements.push({ id, type: 'dialogue', character, parenthetical: str(o.parenthetical, 200).replace(/^\(|\)$/g, ''), text: str(o.text) })
         break
       }

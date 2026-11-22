@@ -51,7 +51,8 @@ const SKILLS: Record<string, string> = {
 - Choose the kind from the text: a screenplay or play → drama (read docs "drama" and turn it into a structured script with a proper cast, scene headings, dialogue, parentheticals, transitions and notes); verse or lyrics → poetry; story or essay → prose; notes, lists or anything else → text; a list of links → resources.
 - If the kind or title isn't clear, or the paste could become more than one block, ask with ask_question first. Otherwise go straight to write.
 - Give the block a short title, taken from the text where possible.
-- If the message has no pasted text yet, ask the writer to paste it.`,
+- If the message has no pasted text yet, ask the writer to paste it.
+- This skill always ends in a tool call: either write (the block) or ask_question. Never answer with brainstorming, feedback or advice about the text — the writer wants it on the page. Short notes are still text to put in a block (usually a Notes block).`,
 }
 
 function describe(block: Block, focused: boolean) {
@@ -76,7 +77,7 @@ Help with brainstorming, loglines, structure, characters, dialogue, imagery, for
 You have tools:
 - read: look at the project's blocks (the outline, or one block in full including a script's structure).
 - docs: how blocks are stored and what the editor expects. Read the relevant topic before your first write of a kind in a conversation (e.g. "drama" before writing a script).
-- ask_question: ask the writer a multiple-choice question (they can also type their own answer) when you need a decision before acting — e.g. what kind of block, which title, or how to split something. Don't ask what you can reasonably decide yourself.
+- ask_question: ask the writer a multiple-choice question (they can also type their own answer) when you need a decision before acting — e.g. what kind of block, which title, or how to split something. Don't ask what you can reasonably decide yourself. Whenever you would end a reply by asking the writer to choose between options, call ask_question instead of writing the question in your message.
 - write: create new blocks or change existing ones. The writer sees a preview and must accept it, so propose writes freely when they'd help — e.g. when asked to write, draft, add, fix or restructure something on the page. Don't write when they only want ideas or feedback in the chat.
 When you do write, say in a sentence or two what you're proposing; the preview shows the content, so don't repeat it in your message.
 
@@ -197,6 +198,18 @@ function readTool(blocks: Block[], args: Record<string, unknown>) {
   const b = blocks.find((x) => x.id === id || x.id.startsWith(id))
   if (!b) return { error: `No block with id ${id}. Call read without block_id for the outline.` }
   const { voices: _voices, originalText: _orig, ...data } = (b.data ?? {}) as Record<string, unknown>
+  // Scripts store speakers by cast id; show names, which is what write expects back.
+  const script = data.script as { cast?: { id: string; name: string }[]; elements?: Record<string, unknown>[] } | undefined
+  if (script?.elements && script.cast) {
+    const cast = script.cast
+    data.script = {
+      ...script,
+      cast: cast.map(({ id: _id, color: _c, ...c }: Record<string, unknown>) => c),
+      elements: script.elements.map(({ id: _id, ...e }) =>
+        e.type === 'dialogue' ? { ...e, character: cast.find((c) => c.id === e.character)?.name ?? e.character } : e,
+      ),
+    }
+  }
   return { id: b.id, kind: b.kind, title: b.title, body: b.kind === 'drama' && data.script ? undefined : b.body, data }
 }
 
