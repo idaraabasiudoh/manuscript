@@ -4,7 +4,7 @@ import { BranchBanner, BranchBar, BranchBody, CompareDialog, ConfirmDialog, NewB
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { downloadUrl, isTextKind, publicUrl, unfurl, type Block, type BlockPatch, type LinkData, type ResourceItem, type Comment } from '../lib/supabase'
-import { CommentThread, useCommentHighlights, useSelectionComment, type CommentDraft } from './Comments'
+import { CommentThread, jumpToComment, useCommentHighlights, useSelectionComment, type CommentDraft } from './Comments'
 import { KINDS, TEMPLATES } from '../lib/templates'
 import { formatBytes, pad, wordCount } from '../lib/util'
 import { ArrowUp, Check, Close, Download, External, Grip, KindIcon, Pencil, Plus, Spark, Trash } from './Icons'
@@ -365,6 +365,10 @@ export function BlockView({ block, index, editing, reading, onEdit, onPatch, onD
           onDelete={commenting.onDelete}
           onClose={() => (setThreadOpen(false), setDraft(null))}
           onClearDraft={() => setDraft(null)}
+          onJump={(c) => {
+            const el = document.getElementById(`block-${block.id}`)
+            if (el) jumpToComment(el, bodyRef.current, c.quote)
+          }}
         />
       )}
     </article>

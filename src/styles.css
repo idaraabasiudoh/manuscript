@@ -1842,3 +1842,30 @@ a.res-title svg { color: var(--muted); }
 .compare-col footer .btn { height: 32px; padding: 0 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
 .confirm-dialog { width: 460px; }
 .confirm-dialog h2 { font-size: 22px !important; }
+
+/* ---- Jumping to a comment ------------------------------------------------------ */
+.comment.jumpable { cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; }
+.comment.jumpable:hover { box-shadow: 0 0 0 1px #f5c84c inset; }
+.comment.jumpable:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.comment.jumpable:active { transform: scale(0.99); }
+.comment-ping {
+  position: fixed; z-index: 60; pointer-events: none; border-radius: 6px;
+  background: color-mix(in srgb, #f5c84c 55%, transparent); box-shadow: 0 0 0 2px #f5c84c;
+  animation: comment-ping 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+@keyframes comment-ping {
+  0% { opacity: 0; transform: scale(1.25); }
+  15% { opacity: 1; transform: scale(1); }
+  35% { box-shadow: 0 0 0 6px color-mix(in srgb, #f5c84c 35%, transparent); }
+  55% { box-shadow: 0 0 0 2px #f5c84c; }
+  100% { opacity: 0; }
+}
+.block.comment-flash { animation: comment-flash 1.8s ease-out; }
+@keyframes comment-flash {
+  0%, 40% { box-shadow: 0 0 0 3px #f5c84c, 0 0 0 9px color-mix(in srgb, #f5c84c 25%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comment-ping { animation: none; opacity: 0.8; }
+  .block.comment-flash { animation: none; box-shadow: 0 0 0 3px #f5c84c; }
+}
